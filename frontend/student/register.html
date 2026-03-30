@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Register — B.U Eats</title>
+  <script src="../common/config.js"></script>
   <meta name="description" content="Create your B.U Eats account and start ordering food from campus canteens." />
   <link rel="stylesheet" href="../common/style.css" />
   <style>
@@ -458,7 +459,7 @@ function register(){
   btn.disabled=true;
   msgEl.textContent='';
 
-  fetch('http://127.0.0.1:5000/register',{
+  fetch(API + '/register',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({name:`${fname} ${lname}`,email,password:pass})

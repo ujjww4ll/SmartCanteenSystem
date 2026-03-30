@@ -1,3 +1,14 @@
 {
-  "outputDirectory": "student"
+  "version": 2,
+  "name": "bu-eats",
+  "buildCommand": "",
+  "outputDirectory": "frontend",
+  "routes": [
+    { "src": "/",            "dest": "/student/index.html" },
+    { "src": "/login",       "dest": "/student/login.html" },
+    { "src": "/register",    "dest": "/student/register.html" },
+    { "src": "/menu",        "dest": "/student/menu.html" },
+    { "src": "/order",       "dest": "/student/order_status.html" },
+    { "src": "/(.*)",        "dest": "/$1" }
+  ]
 }

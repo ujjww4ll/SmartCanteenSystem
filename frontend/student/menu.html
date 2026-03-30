@@ -1,51 +1,365 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Menu</title>
-<link rel="stylesheet" href="../common/style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Menu — B.U Eats</title>
+  <link rel="stylesheet" href="../common/style.css" />
+  <script src="../common/config.js"></script>
+  <script src="../common/app.js"></script>
+  <script>protectPage("student");</script>
+  <style>
+    .menu-page { padding-top: 88px; min-height: 100vh; }
 
-<!-- ✅ Load once + protect -->
-<script src="../common/app.js"></script>
-<script>
-protectPage("student")
-</script>
+    /* Canteen header banner */
+    .canteen-banner {
+      background: var(--glass-bg);
+      border-bottom: 1px solid var(--glass-border);
+      padding: 28px 0;
+      margin-bottom: 40px;
+    }
+    .canteen-banner-inner {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .banner-icon {
+      width: 64px; height: 64px;
+      border-radius: 18px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px;
+      flex-shrink: 0;
+    }
+    .banner-name {
+      font-family: 'Outfit', sans-serif;
+      font-size: 28px; font-weight: 800; letter-spacing: -0.5px;
+    }
+    .banner-sub { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
 
+    /* Layout: menu left + cart right */
+    .menu-layout {
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      gap: 32px;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      .menu-layout { grid-template-columns: 1fr; }
+      .cart-panel  { position: relative; top: unset; }
+    }
+
+    /* Menu section label */
+    .menu-section-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--text-muted);
+      margin-bottom: 16px; margin-top: 32px;
+    }
+    .menu-section-label:first-child { margin-top: 0; }
+
+    /* Menu item cards */
+    .menu-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 16px;
+    }
+
+    .menu-item {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 18px;
+      padding: 20px;
+      transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+      cursor: default;
+      position: relative;
+      overflow: hidden;
+    }
+    .menu-item::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, var(--orange), var(--amber));
+      opacity: 0; transition: opacity 0.3s;
+    }
+    .menu-item:hover { transform: translateY(-4px); border-color: rgba(255,107,53,0.3); box-shadow: 0 16px 40px rgba(0,0,0,0.3); }
+    .menu-item:hover::before { opacity: 1; }
+
+    .item-emoji { font-size: 40px; margin-bottom: 12px; display: block; }
+    .item-name  { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+    .item-meta  { display: flex; gap: 12px; margin-bottom: 16px; }
+    .item-price { font-size: 18px; font-weight: 800; color: var(--amber); }
+    .item-time  { font-size: 12px; color: var(--text-muted); padding-top: 3px; }
+
+    .btn-add {
+      width: 100%;
+      padding: 10px;
+      background: linear-gradient(135deg, rgba(255,107,53,0.15), rgba(255,214,10,0.1));
+      border: 1px solid rgba(255,107,53,0.3);
+      color: var(--orange);
+      font-family: 'Poppins', sans-serif;
+      font-size: 13px; font-weight: 700;
+      border-radius: 10px; cursor: pointer;
+      transition: all 0.25s ease;
+    }
+    .btn-add:hover {
+      background: linear-gradient(135deg, var(--orange), var(--amber));
+      color: white; border-color: transparent;
+      transform: scale(1.03);
+      box-shadow: 0 6px 20px rgba(255,107,53,0.4);
+    }
+    .btn-add:active { transform: scale(0.98); }
+
+    /* Sticky cart panel */
+    .cart-panel {
+      position: sticky;
+      top: 92px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 24px;
+      padding: 28px;
+      backdrop-filter: blur(16px);
+    }
+
+    .cart-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 20px; font-weight: 800;
+      margin-bottom: 6px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .cart-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 24px; height: 24px;
+      background: linear-gradient(135deg, var(--orange), var(--amber));
+      border-radius: 50%; font-size: 12px; font-weight: 700;
+      transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    }
+
+    .cart-items { max-height: 320px; overflow-y: auto; margin: 16px 0; }
+    .cart-items::-webkit-scrollbar { width: 4px; }
+    .cart-items::-webkit-scrollbar-thumb { background: var(--orange); border-radius: 4px; }
+
+    .cart-divider {
+      height: 1px;
+      background: var(--glass-border);
+      margin: 16px 0;
+    }
+
+    .cart-total-row {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 20px;
+    }
+    .cart-total-label { font-size: 13px; color: var(--text-muted); font-weight: 600; }
+    .cart-total-amount { font-size: 24px; font-weight: 800; color: var(--amber); }
+
+    .btn-checkout {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, var(--orange), var(--amber));
+      border: none; color: white;
+      font-family: 'Poppins', sans-serif;
+      font-size: 15px; font-weight: 700;
+      border-radius: 14px; cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 6px 24px rgba(255,107,53,0.4);
+      position: relative; overflow: hidden;
+    }
+    .btn-checkout::before {
+      content: '';
+      position: absolute; top: 0; left: -100%;
+      width: 200%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+      animation: shimmer 2s infinite;
+    }
+    @keyframes shimmer { 0% { left: -100%; } 100% { left: 100%; } }
+    .btn-checkout:hover  { transform: translateY(-2px); box-shadow: 0 12px 36px rgba(255,107,53,0.6); }
+    .btn-checkout:active { transform: translateY(0); }
+    .btn-checkout:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-checkout span { position: relative; z-index: 1; }
+
+    /* Navbar logout */
+    .navbar-right { display: flex; align-items: center; gap: 14px; }
+    .nav-user { font-size: 13px; color: var(--text-muted); }
+    .btn-logout {
+      padding: 8px 20px;
+      background: rgba(239,68,68,0.12);
+      border: 1px solid rgba(239,68,68,0.3);
+      color: #fca5a5;
+      border-radius: 50px; cursor: pointer;
+      font-family: 'Poppins', sans-serif; font-size: 13px; font-weight: 600;
+      transition: all 0.25s;
+    }
+    .btn-logout:hover { background: rgba(239,68,68,0.25); }
+  </style>
 </head>
-
 <body>
+<div class="bg-mesh"></div>
 
-<div class="navbar">Menu</div>
+<!-- Navbar -->
+<nav class="navbar">
+  <a href="index.html" class="navbar-logo">
+    <div class="logo-icon">🍽️</div>
+    <div>
+      <div class="logo-text">B.U Eats</div>
+      <div class="logo-subtitle">Campus Food</div>
+    </div>
+  </a>
+  <div class="navbar-right">
+    <span class="nav-user" id="nav-username"></span>
+    <button class="btn-logout" onclick="logout()">Sign Out</button>
+  </div>
+</nav>
 
-<div class="container">
-
-<div class="grid">
-
-<div class="menuItem">
-<h3>Maggi</h3>
-<p>₹50 • 8 min</p>
-<button onclick="addToCart('Maggi',50,8)">Add</button>
+<!-- Canteen Banner -->
+<div class="canteen-banner">
+  <div class="container">
+    <div class="canteen-banner-inner">
+      <div class="banner-icon" id="bannerIcon"></div>
+      <div>
+        <div class="banner-name" id="canteenName">Loading...</div>
+        <div class="banner-sub" id="canteenSub"></div>
+      </div>
+    </div>
+  </div>
 </div>
 
-<div class="menuItem">
-<h3>Dosa</h3>
-<p>₹80 • 12 min</p>
-<button onclick="addToCart('Dosa',80,12)">Add</button>
+<div class="menu-page">
+  <div class="container">
+    <div class="menu-layout">
+
+      <!-- Left: Menu items -->
+      <div>
+        <div class="menu-section-label">🍽️ Available Items</div>
+        <div class="menu-grid" id="menuGrid">
+          <!-- populated by JS -->
+        </div>
+      </div>
+
+      <!-- Right: Cart -->
+      <div class="cart-panel">
+        <div class="cart-title">
+          Your Cart
+          <span class="cart-badge" id="cart-count">0</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Items added appear here</div>
+
+        <div class="cart-items" id="cart">
+          <p style="color:rgba(255,255,255,0.3);text-align:center;padding:24px 0;">Your cart is empty</p>
+        </div>
+
+        <div class="cart-divider"></div>
+
+        <div class="cart-total-row">
+          <span class="cart-total-label">Total</span>
+          <span class="cart-total-amount" id="cart-total">₹0</span>
+        </div>
+
+        <button class="btn-checkout" onclick="checkout()" id="checkoutBtn">
+          <span>🛒 Place Order</span>
+        </button>
+
+        <div style="margin-top:12px;text-align:center;font-size:11px;color:var(--text-muted);">
+          🔒 Secured with JWT · Track live after placing
+        </div>
+      </div>
+
+    </div>
+  </div>
 </div>
 
-<div class="menuItem">
-<h3>Burger</h3>
-<p>₹90 • 10 min</p>
-<button onclick="addToCart('Burger',90,10)">Add</button>
-</div>
+<script>
+// Canteen data
+const CANTEENS = {
+  1: { name: "Maggi Hotspot",    icon: "🍜", color: "#ff6b35", sub: "Noodles, Snacks & Quick Bites" },
+  2: { name: "Southern Stories", icon: "🍛", color: "#10b981", sub: "South Indian Classics" },
+  3: { name: "SnapEats",         icon: "🍔", color: "#a855f7", sub: "Fast Food & Shakes" },
+  4: { name: "Infinity Kitchen", icon: "🌮", color: "#06b6d4", sub: "Curries, Rice & Street Food" }
+};
 
-</div>
+// Per-canteen menus
+const MENUS = {
+  1: [
+    { name:"Classic Maggi",      emoji:"🍜", price:50,  time:8  },
+    { name:"Cheese Maggi",       emoji:"🧀", price:70,  time:10 },
+    { name:"Egg Maggi",          emoji:"🥚", price:80,  time:10 },
+    { name:"Masala Maggi",       emoji:"🌶️", price:60,  time:8  },
+    { name:"Veg Noodles",        emoji:"🥢", price:65,  time:10 },
+    { name:"Samosa (2 pcs)",     emoji:"🫘", price:20,  time:5  },
+    { name:"Bread Omelette",     emoji:"🍳", price:45,  time:7  },
+    { name:"Chai",               emoji:"☕", price:15,  time:3  }
+  ],
+  2: [
+    { name:"Masala Dosa",        emoji:"🫓", price:80,  time:12 },
+    { name:"Plain Dosa",         emoji:"🫓", price:60,  time:10 },
+    { name:"Idli Sambhar",       emoji:"🍱", price:50,  time:8  },
+    { name:"Vada Sambhar",       emoji:"🥙", price:55,  time:8  },
+    { name:"Uthappam",           emoji:"🥞", price:75,  time:12 },
+    { name:"Pongal",             emoji:"🍚", price:60,  time:8  },
+    { name:"Filter Coffee",      emoji:"☕", price:25,  time:4  },
+    { name:"Coconut Chutney",    emoji:"🥥", price:10,  time:2  }
+  ],
+  3: [
+    { name:"Veg Burger",         emoji:"🍔", price:90,  time:10 },
+    { name:"Chicken Burger",     emoji:"🍗", price:120, time:12 },
+    { name:"French Fries",       emoji:"🍟", price:60,  time:7  },
+    { name:"Loaded Fries",       emoji:"🧆", price:90,  time:10 },
+    { name:"Paneer Roll",        emoji:"🌯", price:80,  time:8  },
+    { name:"Chicken Roll",       emoji:"🌯", price:100, time:10 },
+    { name:"Chocolate Shake",    emoji:"🥤", price:80,  time:5  },
+    { name:"Strawberry Shake",   emoji:"🍓", price:80,  time:5  }
+  ],
+  4: [
+    { name:"Dal Tadka Rice",     emoji:"🍚", price:70,  time:10 },
+    { name:"Rajma Chawal",       emoji:"🫘", price:80,  time:12 },
+    { name:"Paneer Butter Masala",emoji:"🧆",price:110, time:14 },
+    { name:"Aloo Paratha",       emoji:"🫓", price:60,  time:10 },
+    { name:"Chole Bhature",      emoji:"🥘", price:90,  time:12 },
+    { name:"Pav Bhaji",          emoji:"🍞", price:75,  time:10 },
+    { name:"Lassi",              emoji:"🥛", price:40,  time:4  },
+    { name:"Gulab Jamun",        emoji:"🍮", price:30,  time:3  }
+  ]
+};
 
-<h3>Cart</h3>
-<div id="cart"></div>
+// ── Init ──
+const params   = new URLSearchParams(window.location.search);
+const canteenId = parseInt(params.get("canteen")) || 1;
+const info      = CANTEENS[canteenId] || CANTEENS[1];
 
-<button onclick="checkout()">Place Order</button>
+// Banner
+document.getElementById("bannerIcon").textContent = info.icon;
+document.getElementById("bannerIcon").style.background = `linear-gradient(135deg,${info.color}33,${info.color}11)`;
+document.getElementById("bannerIcon").style.border = `1px solid ${info.color}44`;
+document.getElementById("canteenName").textContent = info.name;
+document.getElementById("canteenSub").textContent  = info.sub;
 
-</div>
+// User greeting
+const user = JSON.parse(localStorage.getItem("user") || "{}");
+const navUser = document.getElementById("nav-username");
+if (navUser && user.name) navUser.textContent = "👋 " + user.name;
 
+// Render menu
+const grid  = document.getElementById("menuGrid");
+const items = MENUS[canteenId] || [];
+grid.innerHTML = items.map(item => `
+  <div class="menu-item">
+    <span class="item-emoji">${item.emoji}</span>
+    <div class="item-name">${item.name}</div>
+    <div class="item-meta">
+      <span class="item-price">₹${item.price}</span>
+      <span class="item-time">⏱ ${item.time} min</span>
+    </div>
+    <button class="btn-add" onclick="addToCart('${item.name}', ${item.price}, ${item.time})">
+      + Add to Cart
+    </button>
+  </div>`).join("");
+
+// Animate cart badge on add
+const origAdd = window.addToCart;
+window.addToCart = function(name, price, time) {
+  origAdd(name, price, time);
+  const badge = document.getElementById("cart-count");
+  if (badge) {
+    badge.style.transform = "scale(1.5)";
+    setTimeout(() => badge.style.transform = "scale(1)", 300);
+  }
+};
+</script>
 </body>
 </html>
