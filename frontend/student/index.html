@@ -1,68 +1,720 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Canteens</title>
-<link rel="stylesheet" href="../common/style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>B.U Eats — Campus Food Ordering</title>
+  <meta name="description" content="Order delicious food from your campus canteens instantly. B.U Eats delivers hot meals right to your seat." />
+  <link rel="stylesheet" href="../common/style.css" />
+  <style>
+    /* ── Hero ─────────────────────────────── */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+      padding-top: 72px;
+    }
+
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      background: url('../assets/hero_food.png') center/cover no-repeat;
+      opacity: 0.12;
+      filter: blur(2px);
+      transform: scale(1.05);
+      animation: heroBgBreath 8s ease-in-out infinite alternate;
+    }
+
+    @keyframes heroBgBreath {
+      0%   { opacity: 0.10; transform: scale(1.05); }
+      100% { opacity: 0.18; transform: scale(1.10); }
+    }
+
+    .hero-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        135deg,
+        rgba(8,8,16,0.95) 0%,
+        rgba(8,8,16,0.7) 50%,
+        rgba(8,8,16,0.85) 100%
+      );
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      max-width: 700px;
+      animation: heroIn 1s cubic-bezier(0.4, 0, 0.2, 1) both;
+    }
+
+    @keyframes heroIn {
+      from { opacity: 0; transform: translateY(40px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 18px;
+      background: rgba(255,107,53,0.12);
+      border: 1px solid rgba(255,107,53,0.3);
+      border-radius: 50px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--orange);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 28px;
+      animation: badgePulse 2s ease-in-out infinite;
+    }
+
+    @keyframes badgePulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(255,107,53,0.3); }
+      50%       { box-shadow: 0 0 0 8px rgba(255,107,53,0); }
+    }
+
+    .badge-dot {
+      width: 8px; height: 8px;
+      background: var(--orange);
+      border-radius: 50%;
+      animation: dotBlink 1s ease-in-out infinite;
+    }
+
+    @keyframes dotBlink {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.4; transform: scale(0.7); }
+    }
+
+    .hero h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: clamp(48px, 8vw, 84px);
+      font-weight: 900;
+      line-height: 1.05;
+      margin-bottom: 24px;
+      letter-spacing: -2px;
+    }
+
+    .hero h1 .line-2 {
+      display: block;
+      background: linear-gradient(90deg, var(--orange) 0%, var(--amber) 50%, var(--orange) 100%);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: gradientShift 4s linear infinite;
+    }
+
+    @keyframes gradientShift {
+      0%   { background-position: 0% center; }
+      100% { background-position: 200% center; }
+    }
+
+    .hero p {
+      font-size: 18px;
+      color: var(--text-muted);
+      line-height: 1.7;
+      margin-bottom: 40px;
+      max-width: 520px;
+    }
+
+    .hero-cta {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .btn-explore {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 36px;
+      background: linear-gradient(135deg, var(--orange), var(--amber));
+      border: none;
+      color: white;
+      font-family: 'Poppins', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      border-radius: 50px;
+      cursor: pointer;
+      overflow: hidden;
+      transition: all 0.35s ease;
+      box-shadow: 0 8px 30px rgba(255,107,53,0.45);
+      text-decoration: none;
+    }
+
+    .btn-explore::before {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%;
+      width: 200%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+      transition: left 0.5s ease;
+    }
+
+    .btn-explore:hover { transform: translateY(-4px) scale(1.04); box-shadow: 0 16px 50px rgba(255,107,53,0.6); }
+    .btn-explore:hover::before { left: 100%; }
+    .btn-explore-icon { font-size: 20px; animation: rocketShake 1.5s ease-in-out infinite; }
+
+    @keyframes rocketShake {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      25%       { transform: translateY(-4px) rotate(-10deg); }
+      75%       { transform: translateY(2px) rotate(5deg); }
+    }
+
+    .hero-stats {
+      display: flex;
+      gap: 32px;
+      margin-top: 60px;
+      padding-top: 40px;
+      border-top: 1px solid var(--glass-border);
+    }
+
+    .stat-item { text-align: left; }
+    .stat-number {
+      font-family: 'Outfit', sans-serif;
+      font-size: 32px;
+      font-weight: 800;
+      background: linear-gradient(90deg, var(--orange), var(--amber));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .stat-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+
+    /* Floating food emojis */
+    .floating-emojis { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 1; }
+    .emoji-float {
+      position: absolute;
+      font-size: 28px;
+      animation: emojiFloat linear infinite;
+      filter: blur(0px);
+      opacity: 0.15;
+    }
+
+    @keyframes emojiFloat {
+      0%   { transform: translateY(110%) rotate(0deg); opacity: 0; }
+      10%  { opacity: 0.2; }
+      90%  { opacity: 0.1; }
+      100% { transform: translateY(-10%) rotate(360deg); opacity: 0; }
+    }
+
+    /* ── Section ─────────────────────────── */
+    .section {
+      padding: 100px 0;
+      position: relative;
+      z-index: 1;
+    }
+
+    .section-header {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+
+    .section-tag {
+      display: inline-block;
+      padding: 4px 16px;
+      background: rgba(255,107,53,0.1);
+      border: 1px solid rgba(255,107,53,0.25);
+      border-radius: 50px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--orange);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .section-header h2 {
+      font-family: 'Outfit', sans-serif;
+      font-size: clamp(32px, 5vw, 52px);
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -1px;
+      margin-bottom: 16px;
+    }
+
+    .section-header p {
+      font-size: 16px;
+      color: var(--text-muted);
+      max-width: 500px;
+      margin: 0 auto;
+      line-height: 1.7;
+    }
+
+    /* ── Canteen Cards ───────────────────── */
+    .canteen-card {
+      position: relative;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 24px;
+      padding: 32px;
+      cursor: pointer;
+      overflow: hidden;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      animation: cardIn 0.6s cubic-bezier(0.4, 0, 0.2, 1) both;
+    }
+
+    .canteen-card:nth-child(1) { animation-delay: 0.1s; --card-color: #ff6b35; --card-glow: rgba(255,107,53,0.3); }
+    .canteen-card:nth-child(2) { animation-delay: 0.2s; --card-color: #10b981; --card-glow: rgba(16,185,129,0.3); }
+    .canteen-card:nth-child(3) { animation-delay: 0.3s; --card-color: #a855f7; --card-glow: rgba(168,85,247,0.3); }
+    .canteen-card:nth-child(4) { animation-delay: 0.4s; --card-color: #06b6d4; --card-glow: rgba(6,182,212,0.3); }
+
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(30px) scale(0.96); }
+      to   { opacity: 1; transform: translateY(0)   scale(1); }
+    }
+
+    .canteen-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 80% 60% at 50% 0%, var(--card-glow), transparent);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      border-radius: inherit;
+    }
+
+    .canteen-card::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--card-color), transparent);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      border-radius: 2px;
+    }
+
+    .canteen-card:hover {
+      transform: translateY(-10px) scale(1.02);
+      border-color: var(--card-color);
+      box-shadow: 0 30px 80px rgba(0,0,0,0.4), 0 0 0 1px var(--card-color), 0 0 60px var(--card-glow);
+    }
+
+    .canteen-card:hover::before { opacity: 1; }
+    .canteen-card:hover::after  { opacity: 1; }
+
+    .canteen-icon {
+      font-size: 52px;
+      margin-bottom: 20px;
+      display: block;
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      filter: drop-shadow(0 4px 12px var(--card-glow));
+    }
+
+    .canteen-card:hover .canteen-icon {
+      transform: scale(1.2) rotate(-5deg);
+    }
+
+    .canteen-number {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--card-color);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .canteen-name {
+      font-family: 'Outfit', sans-serif;
+      font-size: 24px;
+      font-weight: 800;
+      margin-bottom: 10px;
+      letter-spacing: -0.5px;
+    }
+
+    .canteen-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+
+    .canteen-tags {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+
+    .tag {
+      padding: 4px 12px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--glass-border);
+      border-radius: 50px;
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .canteen-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 20px;
+      border-top: 1px solid var(--glass-border);
+      margin-bottom: 20px;
+    }
+
+    .meta-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+    .meta-dot { width: 6px; height: 6px; background: #22c55e; border-radius: 50%; box-shadow: 0 0 8px #22c55e; animation: metaBlink 1.5s ease-in-out infinite; }
+
+    @keyframes metaBlink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+
+    /* Individual canteen button colors */
+    .canteen-card:nth-child(1) .btn-open { background: linear-gradient(135deg, #ff6b35, #ffd60a); box-shadow: 0 6px 24px rgba(255,107,53,0.4); }
+    .canteen-card:nth-child(2) .btn-open { background: linear-gradient(135deg, #059669, #10b981); box-shadow: 0 6px 24px rgba(16,185,129,0.4); }
+    .canteen-card:nth-child(3) .btn-open { background: linear-gradient(135deg, #7c3aed, #ec4899); box-shadow: 0 6px 24px rgba(124,58,237,0.4); }
+    .canteen-card:nth-child(4) .btn-open { background: linear-gradient(135deg, #0891b2, #06b6d4); box-shadow: 0 6px 24px rgba(6,182,212,0.4); }
+
+    .btn-open::before { content: ''; position: absolute; inset: 0; border-radius: inherit; background: inherit; }
+    .canteen-card:nth-child(1) .btn-open:hover { box-shadow: 0 12px 40px rgba(255,107,53,0.7); }
+    .canteen-card:nth-child(2) .btn-open:hover { box-shadow: 0 12px 40px rgba(16,185,129,0.7); }
+    .canteen-card:nth-child(3) .btn-open:hover { box-shadow: 0 12px 40px rgba(124,58,237,0.7); }
+    .canteen-card:nth-child(4) .btn-open:hover { box-shadow: 0 12px 40px rgba(6,182,212,0.7); }
+
+    /* ── Features strip ──────────────────── */
+    .features-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1px;
+      background: var(--glass-border);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      overflow: hidden;
+      margin-top: 80px;
+    }
+
+    .feature-item {
+      padding: 32px 24px;
+      background: var(--bg-secondary);
+      text-align: center;
+      transition: var(--transition);
+    }
+
+    .feature-item:hover { background: rgba(255,107,53,0.05); }
+    .feature-emoji { font-size: 36px; margin-bottom: 12px; display: block; }
+    .feature-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+    .feature-desc  { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+
+    /* ── Footer ──────────────────────────── */
+    footer {
+      position: relative;
+      z-index: 1;
+      border-top: 1px solid var(--glass-border);
+      padding: 40px 0;
+      text-align: center;
+    }
+
+    .footer-logo {
+      font-family: 'Outfit', sans-serif;
+      font-size: 28px;
+      font-weight: 900;
+      background: linear-gradient(90deg, var(--orange), var(--amber));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+    }
+
+    .footer-text { font-size: 13px; color: var(--text-muted); }
+    .footer-love { color: var(--orange); }
+  </style>
 </head>
 <body>
 
-<div class="navbar" style="display:flex; justify-content:space-between; align-items:center;">
-    <div>Select Canteen</div>
+<!-- Background layers -->
+<div class="bg-mesh"></div>
+<div class="particles" id="particles"></div>
 
+<!-- Navbar -->
+<nav class="navbar">
+  <a href="index.html" class="navbar-logo">
+    <div class="logo-icon">🍽️</div>
     <div>
-        <a href="login.html">
-            <button style="margin-right:10px;">Login</button>
+      <div class="logo-text">B.U Eats</div>
+      <div class="logo-subtitle">Campus Food</div>
+    </div>
+  </a>
+  <div class="nav-actions">
+    <a href="login.html">
+      <button class="btn-login" id="nav-login"><span>Login</span></button>
+    </a>
+    <a href="register.html">
+      <button class="btn-register" id="nav-register"><span>Register</span></button>
+    </a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-overlay"></div>
+
+  <div class="floating-emojis" id="floatEmojis"></div>
+
+  <div class="container">
+    <div class="hero-content">
+      <div class="hero-badge">
+        <div class="badge-dot"></div>
+        Now Live on Campus
+      </div>
+
+      <h1>
+        Campus food,<br>
+        <span class="line-2">Ordered Instantly</span>
+      </h1>
+
+      <p>
+        Skip the queue. Browse 4 campus canteens, order your favourite meals, 
+        and track them live — right from your phone or laptop.
+      </p>
+
+      <div class="hero-cta">
+        <a href="#canteens" class="btn-explore" id="explore-btn">
+          <span class="btn-explore-icon">🚀</span>
+          <span>Explore Canteens</span>
         </a>
         <a href="register.html">
-            <button>Register</button>
+          <button class="btn-register" style="padding:16px 32px; font-size:15px;"><span>Join Free →</span></button>
         </a>
+      </div>
+
+      <div class="hero-stats">
+        <div class="stat-item">
+          <div class="stat-number" id="count-canteens">4</div>
+          <div class="stat-label">Canteens</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number" id="count-items">100+</div>
+          <div class="stat-label">Menu Items</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number" id="count-orders">Live</div>
+          <div class="stat-label">Order Tracking</div>
+        </div>
+      </div>
     </div>
-</div>
+  </div>
+</section>
 
-<div class="container grid">
+<!-- Canteens Section -->
+<section class="section" id="canteens">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">🏪 Our Canteens</div>
+      <h2>Pick Your <span class="text-gradient">Favourite Spot</span></h2>
+      <p>Four amazing canteens, each with their own specialty menu and vibe.</p>
+    </div>
 
-<div class="menuItem">
-<h3>Maggi Hotspot</h3>
-<button onclick="openCanteen(1)">Open</button>
-</div>
+    <div class="grid-4">
 
-<div class="menuItem">
-<h3>Southern Stories</h3>
-<button onclick="openCanteen(2)">Open</button>
-</div>
+      <!-- Canteen 1 -->
+      <div class="canteen-card" onclick="openCanteen(1)" id="canteen-1">
+        <span class="canteen-icon">🍜</span>
+        <div class="canteen-number">01 · Canteen</div>
+        <div class="canteen-name">Maggi Hotspot</div>
+        <div class="canteen-desc">The legendary noodle hub. Loaded Maggi bowls, spicy variations, and quick bites that hit different between lectures.</div>
+        <div class="canteen-tags">
+          <span class="tag">🌶️ Spicy</span>
+          <span class="tag">⚡ Fast</span>
+          <span class="tag">🍜 Noodles</span>
+        </div>
+        <div class="canteen-meta">
+          <div class="meta-item"><div class="meta-dot"></div> Open Now</div>
+          <div class="meta-item">⏱ ~5 mins</div>
+        </div>
+        <button class="btn-open" id="btn-canteen-1"><span>Order Now</span></button>
+      </div>
 
-<div class="menuItem">
-<h3>SnapEats</h3>
-<button onclick="openCanteen(3)">Open</button>
-</div>
+      <!-- Canteen 2 -->
+      <div class="canteen-card" onclick="openCanteen(2)" id="canteen-2">
+        <span class="canteen-icon">🍛</span>
+        <div class="canteen-number">02 · Canteen</div>
+        <div class="canteen-name">Southern Stories</div>
+        <div class="canteen-desc">Authentic South Indian flavours — crispy dosas, fluffy idlis, steaming sambhar, and filter coffee that wakes you up.</div>
+        <div class="canteen-tags">
+          <span class="tag">🥘 South Indian</span>
+          <span class="tag">☕ Coffee</span>
+          <span class="tag">🌿 Veg</span>
+        </div>
+        <div class="canteen-meta">
+          <div class="meta-item"><div class="meta-dot"></div> Open Now</div>
+          <div class="meta-item">⏱ ~8 mins</div>
+        </div>
+        <button class="btn-open" id="btn-canteen-2"><span>Order Now</span></button>
+      </div>
 
-<div class="menuItem">
-<h3>Infinity Kitchen</h3>
-<button onclick="openCanteen(4)">Open</button>
-</div>
+      <!-- Canteen 3 -->
+      <div class="canteen-card" onclick="openCanteen(3)" id="canteen-3">
+        <span class="canteen-icon">🍔</span>
+        <div class="canteen-number">03 · Canteen</div>
+        <div class="canteen-name">SnapEats</div>
+        <div class="canteen-desc">Campus fast food done right. Juicy burgers, loaded rolls, crispy fries, and milkshakes — fuel for long study sessions.</div>
+        <div class="canteen-tags">
+          <span class="tag">🍟 Fast Food</span>
+          <span class="tag">🥤 Shakes</span>
+          <span class="tag">🔥 Trending</span>
+        </div>
+        <div class="canteen-meta">
+          <div class="meta-item"><div class="meta-dot"></div> Open Now</div>
+          <div class="meta-item">⏱ ~6 mins</div>
+        </div>
+        <button class="btn-open" id="btn-canteen-3"><span>Order Now</span></button>
+      </div>
 
-</div>
+      <!-- Canteen 4 -->
+      <div class="canteen-card" onclick="openCanteen(4)" id="canteen-4">
+        <span class="canteen-icon">🌮</span>
+        <div class="canteen-number">04 · Canteen</div>
+        <div class="canteen-name">Infinity Kitchen</div>
+        <div class="canteen-desc">A never-ending menu of Indian curries, rice specials, stuffed parathas, and fusion street bites for every craving.</div>
+        <div class="canteen-tags">
+          <span class="tag">🍚 Rice</span>
+          <span class="tag">🫓 Parathas</span>
+          <span class="tag">♾️ Variety</span>
+        </div>
+        <div class="canteen-meta">
+          <div class="meta-item"><div class="meta-dot"></div> Open Now</div>
+          <div class="meta-item">⏱ ~10 mins</div>
+        </div>
+        <button class="btn-open" id="btn-canteen-4"><span>Order Now</span></button>
+      </div>
+
+    </div>
+
+    <!-- Features strip -->
+    <div class="features-strip">
+      <div class="feature-item">
+        <span class="feature-emoji">⚡</span>
+        <div class="feature-title">Instant Orders</div>
+        <div class="feature-desc">Place orders in seconds from anywhere on campus</div>
+      </div>
+      <div class="feature-item">
+        <span class="feature-emoji">📡</span>
+        <div class="feature-title">Live Tracking</div>
+        <div class="feature-desc">Know exactly when your food is ready</div>
+      </div>
+      <div class="feature-item">
+        <span class="feature-emoji">🔒</span>
+        <div class="feature-title">Secure Login</div>
+        <div class="feature-desc">Safe and private student authentication</div>
+      </div>
+      <div class="feature-item">
+        <span class="feature-emoji">🍽️</span>
+        <div class="feature-title">Fresh Food</div>
+        <div class="feature-desc">Made to order, served hot every time</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="container">
+    <div class="footer-logo">B.U Eats</div>
+    <p class="footer-text">Made with <span class="footer-love">❤️</span> for the campus. Skip the queue, enjoy the food.</p>
+    <div class="divider" style="max-width:300px; margin:20px auto;"></div>
+    <p class="footer-text" style="font-size:11px;">© 2026 B.U Eats · Smart Canteen System</p>
+  </div>
+</footer>
 
 <script>
-function openCanteen(canteenId){
-
-    const token = localStorage.getItem("token")
-
-    // 🚫 STRICT CHECK
-    if(!token || token === "undefined" || token === null){
-
-        alert("Login required to access canteen")
-
-        localStorage.setItem("redirectAfterLogin", "menu.html?canteen=" + canteenId)
-
-        window.location = "login.html"
-        return
-    }
-
-    // ✅ ALLOW
-    window.location = "menu.html?canteen=" + canteenId
+/* ── Floating particles ── */
+const pContainer = document.getElementById('particles');
+const colors = ['#ff6b35','#ffd60a','#7c3aed','#ec4899','#06b6d4','#10b981'];
+for(let i = 0; i < 25; i++){
+  const p = document.createElement('div');
+  p.className = 'particle';
+  const size = Math.random() * 5 + 2;
+  p.style.cssText = `
+    width:${size}px; height:${size}px;
+    left:${Math.random()*100}%;
+    background:${colors[Math.floor(Math.random()*colors.length)]};
+    animation-duration:${Math.random()*15+10}s;
+    animation-delay:${Math.random()*15}s;
+    border-radius:50%;
+  `;
+  pContainer.appendChild(p);
 }
-</script>
 
+/* ── Floating food emojis ── */
+const floatEmojis = document.getElementById('floatEmojis');
+const foodEmojis = ['🍜','🍛','🍔','🌮','🍟','☕','🥘','🍱','🧋','🍩'];
+for(let i = 0; i < 12; i++){
+  const e = document.createElement('div');
+  e.className = 'emoji-float';
+  e.textContent = foodEmojis[Math.floor(Math.random()*foodEmojis.length)];
+  e.style.cssText = `
+    left:${Math.random()*100}%;
+    animation-duration:${Math.random()*20+15}s;
+    animation-delay:${Math.random()*20}s;
+    font-size:${Math.random()*20+18}px;
+  `;
+  floatEmojis.appendChild(e);
+}
+
+/* ── Smooth scroll ── */
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    document.querySelector(a.getAttribute('href')).scrollIntoView({ behavior:'smooth' });
+  });
+});
+
+/* ── Canteen open logic ── */
+function openCanteen(id){
+  const token = localStorage.getItem('token');
+  if(!token || token === 'undefined'){
+    // Fancy shake animation on cards
+    const card = document.getElementById('canteen-'+id);
+    card.style.animation = 'none';
+    card.style.transform = 'translateX(0)';
+    let count = 0;
+    const shake = setInterval(()=>{
+      card.style.transform = count % 2 === 0 ? 'translateX(-8px)' : 'translateX(8px)';
+      count++;
+      if(count > 6){
+        clearInterval(shake);
+        card.style.transform = '';
+      }
+    }, 60);
+    setTimeout(()=>{
+      localStorage.setItem('redirectAfterLogin', 'menu.html?canteen=' + id);
+      window.location = 'login.html';
+    }, 500);
+    return;
+  }
+  window.location = 'menu.html?canteen=' + id;
+}
+
+/* ── Scroll-triggered card animations ── */
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if(e.isIntersecting) e.target.style.opacity = '1';
+  });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.canteen-card').forEach(c => observer.observe(c));
+
+/* ── Navbar scroll effect ── */
+window.addEventListener('scroll', ()=>{
+  const nav = document.querySelector('.navbar');
+  nav.style.background = window.scrollY > 50
+    ? 'rgba(8,8,16,0.95)'
+    : 'rgba(8,8,16,0.75)';
+});
+</script>
 </body>
 </html>

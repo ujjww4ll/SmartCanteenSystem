@@ -1,50 +1,491 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Student Register</title>
-<link rel="stylesheet" href="../common/style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register — B.U Eats</title>
+  <meta name="description" content="Create your B.U Eats account and start ordering food from campus canteens." />
+  <link rel="stylesheet" href="../common/style.css" />
+  <style>
+    .auth-page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 100px 24px 60px;
+      position: relative;
+    }
+
+    /* Left visual */
+    .auth-visual {
+      position: fixed;
+      left: 0; top: 0; bottom: 0;
+      width: 42%;
+      background: linear-gradient(135deg, rgba(124,58,237,0.12) 0%, rgba(236,72,153,0.08) 100%);
+      border-right: 1px solid var(--glass-border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      overflow: hidden;
+    }
+
+    @media (max-width: 900px) { .auth-visual { display: none; } }
+
+    /* Big animated number display */
+    .visual-big-text {
+      font-family: 'Outfit', sans-serif;
+      font-size: 120px;
+      font-weight: 900;
+      line-height: 1;
+      background: linear-gradient(135deg, var(--purple-light), var(--pink));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0;
+      animation: bigTextPulse 3s ease-in-out infinite;
+      position: relative;
+    }
+
+    @keyframes bigTextPulse {
+      0%, 100% { filter: drop-shadow(0 0 20px rgba(168,85,247,0.3)); transform: scale(1); }
+      50%       { filter: drop-shadow(0 0 50px rgba(236,72,153,0.5)); transform: scale(1.03); }
+    }
+
+    .visual-big-sub {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 48px;
+      text-align: center;
+    }
+
+    .steps-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      width: 100%;
+      max-width: 320px;
+    }
+
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 16px 0;
+      position: relative;
+    }
+
+    .step:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      left: 17px;
+      top: 52px;
+      width: 2px;
+      height: calc(100% - 36px);
+      background: linear-gradient(to bottom, var(--purple-light), transparent);
+    }
+
+    .step-num {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--purple), var(--pink));
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      flex-shrink: 0;
+      box-shadow: 0 0 20px rgba(124,58,237,0.4);
+    }
+
+    .step-info { display: flex; flex-direction: column; padding-top: 6px; }
+    .step-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+    .step-desc  { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+    /* Form side */
+    .auth-form-wrap {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 460px;
+      margin-left: 42%;
+      padding-left: 60px;
+    }
+
+    @media (max-width: 900px) {
+      .auth-form-wrap { margin-left: 0; padding-left: 0; }
+    }
+
+    .form-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 36px;
+      text-decoration: none;
+    }
+
+    .form-logo-icon {
+      width: 44px; height: 44px;
+      background: linear-gradient(135deg, var(--purple), var(--pink));
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 0 24px rgba(124,58,237,0.4);
+    }
+
+    .form-logo-text {
+      font-family: 'Outfit', sans-serif;
+      font-size: 22px;
+      font-weight: 800;
+      background: linear-gradient(90deg, var(--purple-light), var(--pink));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .form-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 36px;
+      font-weight: 800;
+      line-height: 1.2;
+      margin-bottom: 8px;
+      letter-spacing: -1px;
+    }
+
+    .form-subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 36px;
+    }
+
+    .auth-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--glass-border);
+      border-radius: 28px;
+      padding: 36px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      animation: formIn 0.7s cubic-bezier(0.4,0,0.2,1) both;
+    }
+
+    @keyframes formIn {
+      from { opacity: 0; transform: translateY(24px) scale(0.98); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .name-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    /* Purple primary button for register */
+    .btn-register-primary {
+      position: relative;
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, var(--purple), var(--pink));
+      border: none;
+      color: white;
+      font-family: 'Poppins', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      overflow: hidden;
+      transition: var(--transition);
+      letter-spacing: 0.5px;
+      box-shadow: 0 6px 30px rgba(124,58,237,0.4);
+    }
+
+    .btn-register-primary::before {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%;
+      width: 200%; height: 100%;
+      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.25) 50%, transparent 100%);
+      animation: shimmer 2.5s infinite;
+    }
+
+    @keyframes shimmer {
+      0%   { left: -100%; }
+      100% { left: 100%; }
+    }
+
+    .btn-register-primary:hover {
+      transform: translateY(-3px) scale(1.02);
+      box-shadow: 0 12px 40px rgba(236,72,153,0.5);
+    }
+
+    .btn-register-primary span { position: relative; z-index: 1; }
+
+    /* Password strength */
+    .strength-bar {
+      height: 4px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 4px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+
+    .strength-fill {
+      height: 100%;
+      width: 0;
+      border-radius: 4px;
+      transition: width 0.4s ease, background 0.4s ease;
+    }
+
+    .strength-label { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+    .pass-toggle {
+      position: absolute;
+      right: 14px;
+      bottom: 14px;
+      cursor: pointer;
+      font-size: 17px;
+      opacity: 0.4;
+      transition: opacity 0.2s;
+      user-select: none;
+    }
+    .pass-toggle:hover { opacity: 0.8; }
+
+    .input-group::after {
+      content: '';
+      display: block;
+      height: 2px;
+      width: 0;
+      background: linear-gradient(90deg, var(--purple), var(--pink));
+      border-radius: 2px;
+      transition: width 0.4s ease;
+      margin-top: -2px;
+    }
+    .input-group:focus-within::after { width: 100%; }
+
+    .form-footer {
+      margin-top: 24px;
+      text-align: center;
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .form-footer a {
+      color: var(--purple-light);
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    .form-footer a:hover { opacity: 0.8; }
+
+    .terms {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: 16px;
+      line-height: 1.6;
+    }
+
+    .terms a { color: var(--purple-light); text-decoration: none; }
+  </style>
 </head>
-
 <body>
+<div class="bg-mesh"></div>
+<div class="particles" id="particles"></div>
 
-<div class="navbar">Student Register</div>
+<!-- Left Visual -->
+<div class="auth-visual">
+  <div class="visual-big-text">🎓</div>
+  <div class="visual-big-sub">Join B.U Eats</div>
 
-<div class="container">
+  <div class="steps-list">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-info">
+        <div class="step-title">Create your account</div>
+        <div class="step-desc">Fill in your student details to get started in seconds.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-info">
+        <div class="step-title">Browse canteens</div>
+        <div class="step-desc">Explore 4 campus canteens and their full menus.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-info">
+        <div class="step-title">Order & track live</div>
+        <div class="step-desc">Place your order and watch it go from kitchen to your hands.</div>
+      </div>
+    </div>
+  </div>
+</div>
 
-<input id="name" placeholder="Name"><br><br>
-<input id="email" placeholder="Email"><br><br>
-<input id="password" type="password" placeholder="Password"><br><br>
+<!-- Right Form -->
+<div class="auth-page">
+  <div class="auth-form-wrap">
+    <a href="index.html" class="form-logo">
+      <div class="form-logo-icon">🍽️</div>
+      <div class="form-logo-text">B.U Eats</div>
+    </a>
 
-<button onclick="register()">Register</button>
+    <div class="form-title">Create your<br><span class="text-gradient-purple">free account</span></div>
+    <div class="form-subtitle">Join thousands of campus students already using B.U Eats.</div>
 
-<p id="msg"></p>
+    <div class="auth-card">
+      <div class="name-row">
+        <div class="input-group">
+          <label>First Name</label>
+          <input id="fname" type="text" placeholder="John" autocomplete="given-name" />
+        </div>
+        <div class="input-group">
+          <label>Last Name</label>
+          <input id="lname" type="text" placeholder="Doe" autocomplete="family-name" />
+        </div>
+      </div>
 
+      <div class="input-group">
+        <label>Student Email</label>
+        <input id="email" type="email" placeholder="you@university.edu" autocomplete="email" />
+        <span class="input-icon">✉️</span>
+      </div>
+
+      <div class="input-group">
+        <label>Password</label>
+        <input id="password" type="password" placeholder="Create a strong password" oninput="checkStrength(this.value)" autocomplete="new-password" />
+        <span class="pass-toggle" onclick="togglePass('password','tog1')" id="tog1">👁️</span>
+        <div class="strength-bar"><div class="strength-fill" id="strengthFill"></div></div>
+        <div class="strength-label" id="strengthLabel">Enter a password</div>
+      </div>
+
+      <div class="input-group">
+        <label>Confirm Password</label>
+        <input id="confirmPass" type="password" placeholder="Repeat your password" autocomplete="new-password" />
+        <span class="pass-toggle" onclick="togglePass('confirmPass','tog2')" id="tog2">👁️</span>
+      </div>
+
+      <button class="btn-register-primary" onclick="register()" id="regBtn">
+        <span id="regBtnText"><span>🎉 Create My Account</span></span>
+      </button>
+
+      <p class="terms">By registering you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.</p>
+    </div>
+
+    <div id="msg"></div>
+
+    <div class="form-footer" style="margin-top:20px;">
+      Already have an account? <a href="login.html">Sign in →</a>
+    </div>
+  </div>
 </div>
 
 <script>
-function register(){
-
-const name = document.getElementById("name").value
-const email = document.getElementById("email").value
-const password = document.getElementById("password").value
-
-fetch("http://127.0.0.1:5000/register",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({
-name: name,
-email: email,
-password: password,
-role:"student"
-})
-})
-.then(r=>r.json())
-.then(d=>{
-msg.innerText = d.msg || d.error
-})
+/* Particles */
+const pContainer = document.getElementById('particles');
+const colors=['#7c3aed','#ec4899','#a855f7','#ffd60a'];
+for(let i=0;i<20;i++){
+  const p=document.createElement('div');
+  p.className='particle';
+  const s=Math.random()*4+2;
+  p.style.cssText=`width:${s}px;height:${s}px;left:${Math.random()*100}%;background:${colors[Math.floor(Math.random()*colors.length)]};animation-duration:${Math.random()*12+8}s;animation-delay:${Math.random()*12}s;`;
+  pContainer.appendChild(p);
 }
+
+function togglePass(id,togId){
+  const inp=document.getElementById(id);
+  const tog=document.getElementById(togId);
+  if(inp.type==='password'){ inp.type='text'; tog.textContent='🙈'; }
+  else { inp.type='password'; tog.textContent='👁️'; }
+}
+
+function checkStrength(val){
+  const fill=document.getElementById('strengthFill');
+  const label=document.getElementById('strengthLabel');
+  let score=0;
+  if(val.length>=8) score++;
+  if(/[A-Z]/.test(val)) score++;
+  if(/[0-9]/.test(val)) score++;
+  if(/[^A-Za-z0-9]/.test(val)) score++;
+  const levels=[
+    {w:'0%',   c:'transparent',       t:'Enter a password'},
+    {w:'25%',  c:'#ef4444',          t:'Weak'},
+    {w:'50%',  c:'#f97316',          t:'Fair'},
+    {w:'75%',  c:'#eab308',          t:'Good'},
+    {w:'100%', c:'#22c55e',          t:'Strong 💪'},
+  ];
+  const l=levels[score];
+  fill.style.width=l.w;
+  fill.style.background=l.c;
+  label.textContent=l.t;
+  label.style.color=l.c;
+}
+
+function register(){
+  const email=document.getElementById('email').value.trim();
+  const fname=document.getElementById('fname').value.trim();
+  const lname=document.getElementById('lname').value.trim();
+  const pass=document.getElementById('password').value;
+  const conf=document.getElementById('confirmPass').value;
+  const btn=document.getElementById('regBtn');
+  const btnText=document.getElementById('regBtnText');
+  const msgEl=document.getElementById('msg');
+
+  if(!fname||!lname||!email||!pass){
+    msgEl.className='msg msg-error';
+    msgEl.textContent='⚠️ Please fill in all fields.';
+    return;
+  }
+
+  if(pass!==conf){
+    msgEl.className='msg msg-error';
+    msgEl.textContent='❌ Passwords do not match!';
+    return;
+  }
+
+  if(pass.length<6){
+    msgEl.className='msg msg-error';
+    msgEl.textContent='❌ Password must be at least 6 characters.';
+    return;
+  }
+
+  btnText.innerHTML='<span class="spinner"></span>Creating account...';
+  btn.disabled=true;
+  msgEl.textContent='';
+
+  fetch('http://127.0.0.1:5000/register',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name:`${fname} ${lname}`,email,password:pass})
+  })
+  .then(r=>r.json())
+  .then(d=>{
+    if(d.error){
+      msgEl.className='msg msg-error';
+      msgEl.textContent='❌ '+d.error;
+      btnText.innerHTML='<span>🎉 Create My Account</span>';
+      btn.disabled=false;
+      return;
+    }
+    msgEl.className='msg msg-success';
+    msgEl.textContent='🎉 Account created! Redirecting to login...';
+    btnText.innerHTML='✅ Account Created!';
+    setTimeout(()=>window.location='login.html',1500);
+  })
+  .catch(()=>{
+    msgEl.className='msg msg-error';
+    msgEl.textContent='❌ Server unreachable. Make sure the backend is running.';
+    btnText.innerHTML='<span>🎉 Create My Account</span>';
+    btn.disabled=false;
+  });
+}
+
+document.addEventListener('keydown',e=>{ if(e.key==='Enter') register(); });
 </script>
-
-
 </body>
 </html>

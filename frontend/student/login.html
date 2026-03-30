@@ -1,56 +1,451 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Student Login</title>
-<link rel="stylesheet" href="../common/style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login — B.U Eats</title>
+  <meta name="description" content="Login to B.U Eats and order food from your campus canteens." />
+  <link rel="stylesheet" href="../common/style.css" />
+  <style>
+    .auth-page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 100px 24px 40px;
+      position: relative;
+    }
+
+    /* Left visual panel */
+    .auth-visual {
+      position: fixed;
+      left: 0; top: 0; bottom: 0;
+      width: 45%;
+      background: linear-gradient(135deg, rgba(255,107,53,0.15) 0%, rgba(124,58,237,0.1) 100%);
+      border-right: 1px solid var(--glass-border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      overflow: hidden;
+    }
+
+    @media (max-width: 900px) { .auth-visual { display: none; } }
+
+    .visual-orbit {
+      position: relative;
+      width: 280px;
+      height: 280px;
+      margin-bottom: 48px;
+    }
+
+    .orbit-center {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 100px; height: 100px;
+      background: linear-gradient(135deg, var(--orange), var(--amber));
+      border-radius: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 44px;
+      box-shadow: 0 0 60px rgba(255,107,53,0.5);
+      animation: centerPulse 3s ease-in-out infinite;
+      z-index: 2;
+    }
+
+    @keyframes centerPulse {
+      0%, 100% { transform: translate(-50%,-50%) scale(1) rotate(0deg); box-shadow: 0 0 40px rgba(255,107,53,0.4); }
+      50%       { transform: translate(-50%,-50%) scale(1.08) rotate(5deg); box-shadow: 0 0 80px rgba(255,107,53,0.7); }
+    }
+
+    .orbit-ring {
+      position: absolute;
+      top: 50%; left: 50%;
+      border: 1px dashed rgba(255,107,53,0.25);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      animation: ringRotate linear infinite;
+    }
+
+    .orbit-ring-1 { width: 160px; height: 160px; animation-duration: 8s; }
+    .orbit-ring-2 { width: 240px; height: 240px; animation-duration: 14s; animation-direction: reverse; border-color: rgba(124,58,237,0.2); }
+
+    @keyframes ringRotate { to { transform: translate(-50%,-50%) rotate(360deg); } }
+
+    .orbit-dot {
+      position: absolute;
+      width: 36px; height: 36px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      backdrop-filter: blur(10px);
+    }
+
+    .orbit-dot-1 { top: -18px; left: 50%; transform: translateX(-50%); animation: floatDot1 3s ease-in-out infinite; }
+    .orbit-dot-2 { bottom: -18px; left: 50%; transform: translateX(-50%); animation: floatDot1 3s ease-in-out infinite 0.5s; }
+    .orbit-dot-3 { left: -18px; top: 50%; transform: translateY(-50%); animation: floatDot1 3s ease-in-out infinite 1s; }
+    .orbit-dot-4 { right: -18px; top: 50%; transform: translateY(-50%); animation: floatDot1 3s ease-in-out infinite 1.5s; }
+
+    @keyframes floatDot1 {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50%       { transform: translateX(-50%) translateY(-6px); }
+    }
+
+    .visual-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 32px;
+      font-weight: 800;
+      text-align: center;
+      margin-bottom: 16px;
+      line-height: 1.2;
+    }
+
+    .visual-desc {
+      font-size: 14px;
+      color: var(--text-muted);
+      text-align: center;
+      line-height: 1.7;
+      max-width: 320px;
+    }
+
+    .visual-features {
+      margin-top: 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      width: 100%;
+      max-width: 320px;
+    }
+
+    .visual-feature {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 18px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      backdrop-filter: blur(10px);
+      animation: featureSlide 0.6s cubic-bezier(0.4,0,0.2,1) both;
+    }
+
+    .visual-feature:nth-child(1) { animation-delay: 0.1s; }
+    .visual-feature:nth-child(2) { animation-delay: 0.2s; }
+    .visual-feature:nth-child(3) { animation-delay: 0.3s; }
+
+    @keyframes featureSlide {
+      from { opacity: 0; transform: translateX(-20px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .visual-feature-icon { font-size: 22px; }
+    .visual-feature-text { font-size: 13px; font-weight: 500; }
+
+    /* Right form panel */
+    .auth-form-wrap {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 440px;
+      margin-left: 45%;
+      padding-left: 60px;
+    }
+
+    @media (max-width: 900px) {
+      .auth-form-wrap { margin-left: 0; padding-left: 0; }
+    }
+
+    .form-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 40px;
+      text-decoration: none;
+    }
+
+    .form-logo-icon {
+      width: 44px; height: 44px;
+      background: linear-gradient(135deg, var(--orange), var(--amber));
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 0 24px rgba(255,107,53,0.4);
+    }
+
+    .form-logo-text {
+      font-family: 'Outfit', sans-serif;
+      font-size: 22px;
+      font-weight: 800;
+      background: linear-gradient(90deg, var(--orange), var(--amber));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .form-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 38px;
+      font-weight: 800;
+      line-height: 1.15;
+      margin-bottom: 8px;
+      letter-spacing: -1px;
+    }
+
+    .form-subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 40px;
+      line-height: 1.6;
+    }
+
+    .auth-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--glass-border);
+      border-radius: 28px;
+      padding: 36px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      animation: formIn 0.7s cubic-bezier(0.4,0,0.2,1) both;
+    }
+
+    @keyframes formIn {
+      from { opacity: 0; transform: translateY(24px) scale(0.98); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .divider-text {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 28px 0;
+      color: var(--text-muted);
+      font-size: 12px;
+      letter-spacing: 1px;
+    }
+
+    .divider-text::before,
+    .divider-text::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--glass-border);
+    }
+
+    .forgot-link {
+      font-size: 13px;
+      color: var(--orange);
+      text-decoration: none;
+      font-weight: 500;
+      float: right;
+      margin-top: -16px;
+      margin-bottom: 8px;
+      transition: opacity 0.2s;
+    }
+    .forgot-link:hover { opacity: 0.7; }
+
+    .form-footer {
+      margin-top: 24px;
+      text-align: center;
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .form-footer a {
+      color: var(--orange);
+      font-weight: 600;
+      text-decoration: none;
+      transition: opacity 0.2s;
+    }
+
+    .form-footer a:hover { opacity: 0.7; }
+
+    /* Password toggle */
+    .input-group .pass-toggle {
+      position: absolute;
+      right: 14px;
+      bottom: 14px;
+      cursor: pointer;
+      font-size: 17px;
+      opacity: 0.4;
+      transition: opacity 0.2s;
+      user-select: none;
+    }
+    .input-group .pass-toggle:hover { opacity: 0.8; }
+
+    /* Input focus glow line */
+    .input-group::after {
+      content: '';
+      display: block;
+      height: 2px;
+      width: 0;
+      background: linear-gradient(90deg, var(--orange), var(--amber));
+      border-radius: 2px;
+      transition: width 0.4s ease;
+      margin-top: -2px;
+    }
+    .input-group:focus-within::after { width: 100%; }
+  </style>
 </head>
-
 <body>
+<div class="bg-mesh"></div>
+<div class="particles" id="particles"></div>
 
-<div class="navbar">Student Login</div>
+<!-- Left Visual Panel -->
+<div class="auth-visual">
+  <div class="visual-orbit">
+    <div class="orbit-ring orbit-ring-1">
+      <div class="orbit-dot orbit-dot-1">🍜</div>
+      <div class="orbit-dot orbit-dot-2">🍛</div>
+      <div class="orbit-dot orbit-dot-3">☕</div>
+      <div class="orbit-dot orbit-dot-4">🍔</div>
+    </div>
+    <div class="orbit-ring orbit-ring-2"></div>
+    <div class="orbit-center">🍽️</div>
+  </div>
 
-<div class="container">
+  <div class="visual-title">Welcome <span class="text-gradient">Back!</span></div>
+  <div class="visual-desc">Your campus canteen experience, reimagined. Fast orders, live tracking, fresh food.</div>
 
-<input id="email" placeholder="Email"><br><br>
-<input id="password" type="password" placeholder="Password"><br><br>
+  <div class="visual-features">
+    <div class="visual-feature">
+      <span class="visual-feature-icon">⚡</span>
+      <span class="visual-feature-text">Order food in under 30 seconds</span>
+    </div>
+    <div class="visual-feature">
+      <span class="visual-feature-icon">📡</span>
+      <span class="visual-feature-text">Track your order in real-time</span>
+    </div>
+    <div class="visual-feature">
+      <span class="visual-feature-icon">🏪</span>
+      <span class="visual-feature-text">4 canteens, 100+ menu items</span>
+    </div>
+  </div>
+</div>
 
-<button onclick="login()">Login</button>
-<p>
-    Don't have an account? 
-    <a href="register.html">Create new account</a>
-</p>
+<!-- Right Form Area -->
+<div class="auth-page">
+  <div class="auth-form-wrap">
+    <a href="index.html" class="form-logo">
+      <div class="form-logo-icon">🍽️</div>
+      <div class="form-logo-text">B.U Eats</div>
+    </a>
 
-<p id="msg"></p>
+    <div class="form-title">Sign in to<br><span class="text-gradient">B.U Eats</span></div>
+    <div class="form-subtitle">Enter your student credentials to access campus canteens.</div>
 
+    <div class="auth-card">
+      <div class="input-group">
+        <label>Student Email</label>
+        <input id="email" type="email" placeholder="you@university.edu" autocomplete="email" />
+        <span class="input-icon">✉️</span>
+      </div>
+
+      <div class="input-group">
+        <label>Password</label>
+        <input id="password" type="password" placeholder="Enter your password" autocomplete="current-password" />
+        <span class="pass-toggle" onclick="togglePass()" id="passToggle">👁️</span>
+      </div>
+
+      <a href="#" class="forgot-link">Forgot password?</a>
+      <br>
+
+      <button class="btn-primary" onclick="login()" id="loginBtn">
+        <span id="loginBtnText"><span>🔑 Login to B.U Eats</span></span>
+      </button>
+
+      <div class="divider-text">or continue with</div>
+
+      <div class="form-footer">
+        Don't have an account? <a href="register.html">Create one free →</a>
+      </div>
+    </div>
+
+    <div id="msg"></div>
+  </div>
 </div>
 
 <script>
+/* Particles */
+const pContainer = document.getElementById('particles');
+const colors = ['#ff6b35','#ffd60a','#7c3aed','#ec4899'];
+for(let i=0;i<20;i++){
+  const p=document.createElement('div');
+  p.className='particle';
+  const s=Math.random()*4+2;
+  p.style.cssText=`width:${s}px;height:${s}px;left:${Math.random()*100}%;background:${colors[Math.floor(Math.random()*colors.length)]};animation-duration:${Math.random()*12+8}s;animation-delay:${Math.random()*12}s;`;
+  pContainer.appendChild(p);
+}
+
+function togglePass(){
+  const inp=document.getElementById('password');
+  const tog=document.getElementById('passToggle');
+  if(inp.type==='password'){ inp.type='text'; tog.textContent='🙈'; }
+  else { inp.type='password'; tog.textContent='👁️'; }
+}
+
 function login(){
+  const email=document.getElementById('email').value.trim();
+  const pass=document.getElementById('password').value;
+  const btn=document.getElementById('loginBtn');
+  const btnText=document.getElementById('loginBtnText');
+  const msgEl=document.getElementById('msg');
 
-fetch("http://127.0.0.1:5000/login",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({
-email:email.value,
-password:password.value
-})
-})
-.then(r=>r.json())
-.then(d=>{
+  if(!email||!pass){
+    msgEl.className='msg msg-error';
+    msgEl.textContent='⚠️ Please fill in all fields.';
+    return;
+  }
 
-if(d.error){
-msg.innerText = d.error
-return
+  // Loading state
+  btnText.innerHTML='<span class="spinner"></span>Signing in...';
+  btn.disabled=true;
+  msgEl.textContent='';
+
+  fetch('http://127.0.0.1:5000/login',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({email,password:pass})
+  })
+  .then(r=>r.json())
+  .then(d=>{
+    if(d.error){
+      msgEl.className='msg msg-error';
+      msgEl.textContent='❌ '+d.error;
+      btnText.innerHTML='<span>🔑 Login to B.U Eats</span>';
+      btn.disabled=false;
+      return;
+    }
+    localStorage.setItem('token',d.token);
+    localStorage.setItem('user',JSON.stringify(d));
+    msgEl.className='msg msg-success';
+    msgEl.textContent='✅ Login successful! Redirecting...';
+    btnText.innerHTML='✅ Success!';
+
+    const redirect=localStorage.getItem('redirectAfterLogin');
+    setTimeout(()=>{
+      localStorage.removeItem('redirectAfterLogin');
+      window.location=redirect||'index.html';
+    },1000);
+  })
+  .catch(()=>{
+    msgEl.className='msg msg-error';
+    msgEl.textContent='❌ Server unreachable. Make sure the backend is running.';
+    btnText.innerHTML='<span>🔑 Login to B.U Eats</span>';
+    btn.disabled=false;
+  });
 }
 
-localStorage.setItem("token", d.token)
-localStorage.setItem("user", JSON.stringify(d))
-
-window.location="index.html"
-
-})
-}
+// Enter key
+document.addEventListener('keydown',e=>{ if(e.key==='Enter') login(); });
 </script>
-
 </body>
 </html>
