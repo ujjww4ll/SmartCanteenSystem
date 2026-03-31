@@ -4,11 +4,21 @@
   "buildCommand": "",
   "outputDirectory": "frontend",
   "routes": [
-    { "src": "/",            "dest": "/student/index.html" },
-    { "src": "/login",       "dest": "/student/login.html" },
-    { "src": "/register",    "dest": "/student/register.html" },
-    { "src": "/menu",        "dest": "/student/menu.html" },
-    { "src": "/order",       "dest": "/student/order_status.html" },
-    { "src": "/(.*)",        "dest": "/$1" }
+    { "src": "/",                       "dest": "/student/index.html"       },
+    { "src": "/index.html",             "dest": "/student/index.html"       },
+
+    { "src": "/login",                  "dest": "/student/login.html"       },
+    { "src": "/login.html",             "dest": "/student/login.html"       },
+
+    { "src": "/register",               "dest": "/student/register.html"    },
+    { "src": "/register.html",          "dest": "/student/register.html"    },
+
+    { "src": "/menu",                   "dest": "/student/menu.html"        },
+    { "src": "/menu.html",              "dest": "/student/menu.html"        },
+
+    { "src": "/order_status",           "dest": "/student/order_status.html"},
+    { "src": "/order_status.html",      "dest": "/student/order_status.html"},
+
+    { "src": "/(.*)",                   "dest": "/$1"                       }
   ]
 }
