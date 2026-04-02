@@ -365,8 +365,45 @@
       <div class="input-group">
         <label>Student Email</label>
         <input id="email" type="email" placeholder="you@bennett.edu.in" autocomplete="email" />
-        <div style="font-size:11px;color:#acaab5;margin-top:6px;">🔒 Only @bennett.edu.in emails are accepted</div>
+        <div style="font-size:11px;color:#acaab5;margin-top:6px;">🔒 Only @bennett.edu.in emails are accepted. Your enrollment no. is extracted automatically.</div>
       </div>
+
+      <!-- Phone + OTP block -->
+      <div class="input-group" id="phoneGroup">
+        <label>Mobile Number</label>
+        <div style="display:flex;gap:8px;">
+          <div style="display:flex;align-items:center;padding:0 12px;background:rgba(255,255,255,0.04);border:0.5px solid rgba(72,71,81,0.4);border-radius:12px;font-size:13px;color:#9998aa;white-space:nowrap;">🇮🇳 +91</div>
+          <input id="phone" type="tel" placeholder="10-digit mobile number" maxlength="10" style="flex:1;" autocomplete="tel" oninput="this.value=this.value.replace(/\D/g,'').slice(0,10)" />
+          <button type="button" id="sendOtpBtn" onclick="sendOtp()" style="
+            padding:0 16px;
+            background:linear-gradient(135deg,#c97cff,#6b6bff);
+            border:none;border-radius:12px;
+            color:#fff;font-family:'Manrope',sans-serif;font-size:12px;font-weight:800;
+            cursor:pointer;white-space:nowrap;transition:all 0.2s;
+            box-shadow:0 4px 14px rgba(201,124,255,0.3);
+          ">Send OTP</button>
+        </div>
+        <div id="devOtpNotice" style="display:none;margin-top:8px;padding:8px 12px;background:rgba(255,227,147,0.08);border:0.5px solid rgba(255,227,147,0.2);border-radius:8px;font-size:11px;color:#ffe393;"></div>
+      </div>
+
+      <!-- OTP input (hidden until sent) -->
+      <div class="input-group" id="otpGroup" style="display:none;">
+        <label>Enter OTP <span id="otpTimer" style="color:#ff9f4a;font-weight:800;"></span></label>
+        <div style="display:flex;gap:8px;">
+          <input id="otpInput" type="text" placeholder="6-digit OTP" maxlength="6" style="letter-spacing:6px;font-size:18px;font-weight:700;text-align:center;flex:1;" oninput="this.value=this.value.replace(/\D/g,'').slice(0,6)" />
+          <button type="button" onclick="verifyOtp()" style="
+            padding:0 18px;
+            background:linear-gradient(135deg,#4fffb0,#6bb8ff);
+            border:none;border-radius:12px;
+            color:#001a12;font-family:'Manrope',sans-serif;font-size:12px;font-weight:800;
+            cursor:pointer;white-space:nowrap;
+          ">Verify</button>
+        </div>
+        <div id="otpStatus" style="font-size:11px;margin-top:6px;"></div>
+      </div>
+
+      <!-- Verified badge (hidden until verified) -->
+      <div id="phoneVerifiedBadge" style="display:none;padding:8px 14px;background:rgba(79,255,176,0.08);border:0.5px solid rgba(79,255,176,0.25);border-radius:10px;font-size:12px;font-weight:700;color:#4fffb0;margin-bottom:10px;">✅ Phone verified!</div>
 
       <div class="input-group">
         <label>Password</label>
@@ -446,6 +483,7 @@ function register(){
   const email=document.getElementById('email').value.trim();
   const fname=document.getElementById('fname').value.trim();
   const lname=document.getElementById('lname').value.trim();
+  const phone=document.getElementById('phone').value.trim();
   const pass=document.getElementById('password').value;
   const conf=document.getElementById('confirmPass').value;
   const btn=document.getElementById('regBtn');
@@ -463,6 +501,14 @@ function register(){
     msgEl.className='msg msg-error';
     msgEl.textContent='❌ Only @bennett.edu.in email addresses are allowed.';
     document.getElementById('email').focus();
+    return;
+  }
+
+  // Phone verified check
+  if(!phoneVerified){
+    msgEl.className='msg msg-error';
+    msgEl.textContent='❌ Please verify your mobile number first.';
+    document.getElementById('phone').focus();
     return;
   }
 
@@ -485,7 +531,7 @@ function register(){
   fetch(API + '/register',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({name:`${fname} ${lname}`,email,password:pass})
+    body:JSON.stringify({name:`${fname} ${lname}`,email,password:pass,phone})
   })
   .then(r=>r.json())
   .then(d=>{
@@ -509,7 +555,110 @@ function register(){
   });
 }
 
+/* ── OTP Logic ── */
+let phoneVerified = false;
+let otpTimerInt   = null;
+
+async function sendOtp(){
+  const phone = document.getElementById('phone').value.trim();
+  const msgEl = document.getElementById('msg');
+  if(!phone || phone.length !== 10){
+    msgEl.className='msg msg-error';
+    msgEl.textContent='❌ Enter a valid 10-digit mobile number first.';
+    return;
+  }
+
+  const btn = document.getElementById('sendOtpBtn');
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+
+  try {
+    const res  = await fetch(API + '/send-otp', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({phone})
+    });
+    const data = await res.json();
+
+    if(!res.ok){ 
+      msgEl.className='msg msg-error';
+      msgEl.textContent='❌ '+data.error;
+      btn.disabled=false; btn.textContent='Send OTP';
+      return;
+    }
+
+    // Show OTP input
+    document.getElementById('otpGroup').style.display = 'block';
+
+    // Dev mode — show OTP on screen
+    if(data.dev_mode && data.otp){
+      document.getElementById('devOtpNotice').style.display = 'block';
+      document.getElementById('devOtpNotice').innerHTML =
+        `🧪 <b>Dev Mode:</b> Your OTP is <b style="font-size:16px;letter-spacing:3px;color:#ff9f4a">${data.otp}</b> (No SMS API key set)`;
+    } else {
+      msgEl.className='msg msg-success';
+      msgEl.textContent='📱 OTP sent to +91 '+phone;
+    }
+
+    // Countdown timer (10 min)
+    startTimer(600);
+    btn.textContent = 'Resend OTP';
+    btn.disabled = false;
+
+  } catch(e){
+    msgEl.className='msg msg-error';
+    msgEl.textContent='❌ Server unreachable.';
+    btn.disabled=false; btn.textContent='Send OTP';
+  }
+}
+
+async function verifyOtp(){
+  const phone = document.getElementById('phone').value.trim();
+  const otp   = document.getElementById('otpInput').value.trim();
+  const status = document.getElementById('otpStatus');
+
+  if(otp.length !== 6){ status.style.color='#fca5a5'; status.textContent='Enter the 6-digit OTP'; return; }
+
+  status.textContent = 'Verifying...';
+  try {
+    const res  = await fetch(API + '/verify-otp',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({phone, otp})
+    });
+    const data = await res.json();
+    if(!res.ok){ status.style.color='#fca5a5'; status.textContent='❌ '+data.error; return; }
+
+    // Verified!
+    phoneVerified = true;
+    document.getElementById('otpGroup').style.display = 'none';
+    document.getElementById('phoneGroup').querySelector('button').style.display = 'none';
+    document.getElementById('phoneVerifiedBadge').style.display = 'block';
+    document.getElementById('phone').readOnly = true;
+    document.getElementById('devOtpNotice').style.display = 'none';
+    clearInterval(otpTimerInt);
+  } catch(e){
+    status.style.color='#fca5a5'; status.textContent='❌ Server unreachable.';
+  }
+}
+
+function startTimer(seconds){
+  clearInterval(otpTimerInt);
+  const el = document.getElementById('otpTimer');
+  otpTimerInt = setInterval(()=>{
+    const m = Math.floor(seconds/60);
+    const s = seconds % 60;
+    el.textContent = `(${m}:${s<10?'0':''}${s})`;
+    if(--seconds < 0){
+      clearInterval(otpTimerInt);
+      el.textContent = '(expired)';
+      el.style.color = '#ff6b6b';
+    }
+  },1000);
+}
+
 document.addEventListener('keydown',e=>{ if(e.key==='Enter') register(); });
+
 </script>
 </body>
 </html>

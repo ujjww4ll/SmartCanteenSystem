@@ -58,14 +58,17 @@ def init_db():
     if USE_POSTGRES:
         cur.execute("""
         CREATE TABLE IF NOT EXISTS users(
-            id            SERIAL PRIMARY KEY,
-            name          TEXT,
-            email         TEXT UNIQUE,
-            password      TEXT,
-            role          TEXT DEFAULT 'student',
-            canteen_id    INTEGER,
-            registered_at DOUBLE PRECISION DEFAULT 0,
-            last_login    DOUBLE PRECISION DEFAULT 0
+            id             SERIAL PRIMARY KEY,
+            name           TEXT,
+            email          TEXT UNIQUE,
+            password       TEXT,
+            role           TEXT DEFAULT 'student',
+            canteen_id     INTEGER,
+            phone          TEXT,
+            enrollment_no  TEXT,
+            phone_verified INTEGER DEFAULT 0,
+            registered_at  DOUBLE PRECISION DEFAULT 0,
+            last_login     DOUBLE PRECISION DEFAULT 0
         )""")
         cur.execute("""
         CREATE TABLE IF NOT EXISTS canteens(
@@ -90,18 +93,23 @@ def init_db():
         import sqlite3
         cur.execute("""
         CREATE TABLE IF NOT EXISTS users(
-            id            INTEGER PRIMARY KEY AUTOINCREMENT,
-            name          TEXT,
-            email         TEXT UNIQUE,
-            password      TEXT,
-            role          TEXT DEFAULT 'student',
-            canteen_id    INTEGER,
-            registered_at REAL DEFAULT 0,
-            last_login    REAL DEFAULT 0
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            name           TEXT,
+            email          TEXT UNIQUE,
+            password       TEXT,
+            role           TEXT DEFAULT 'student',
+            canteen_id     INTEGER,
+            phone          TEXT,
+            enrollment_no  TEXT,
+            phone_verified INTEGER DEFAULT 0,
+            registered_at  REAL DEFAULT 0,
+            last_login     REAL DEFAULT 0
         )""")
-        for col in ["registered_at", "last_login"]:
+        # Migrate existing tables safely
+        for col, typ in [("registered_at","REAL DEFAULT 0"),("last_login","REAL DEFAULT 0"),
+                         ("phone","TEXT"),("enrollment_no","TEXT"),("phone_verified","INTEGER DEFAULT 0")]:
             try:
-                cur.execute(f"ALTER TABLE users ADD COLUMN {col} REAL DEFAULT 0")
+                cur.execute(f"ALTER TABLE users ADD COLUMN {col} {typ}")
             except Exception:
                 pass
 
@@ -145,6 +153,54 @@ def seed():
 
 seed()
 
+# ── In-memory OTP store {phone: {otp, expires}} ──────────────────────────────
+import random
+otp_store = {}
+
+# ── SEND OTP ──────────────────────────────────────────────────────────────────
+@app.route("/send-otp", methods=["POST"])
+def send_otp():
+    phone = (request.json.get("phone") or "").strip()
+    if not phone.isdigit() or len(phone) != 10:
+        return jsonify({"error": "Enter a valid 10-digit Indian mobile number"}), 400
+
+    otp = str(random.randint(100000, 999999))
+    otp_store[phone] = {"otp": otp, "expires": time.time() + 600, "verified": False}
+
+    api_key = os.environ.get("FAST2SMS_API_KEY", "")
+    dev_mode = not bool(api_key)
+
+    if not dev_mode:
+        import urllib.request, urllib.parse
+        msg = urllib.parse.quote(f"Your B.U Eats OTP is {otp}. Valid 10 min. Do not share.")
+        url = f"https://www.fast2sms.com/dev/bulkV2?authorization={api_key}&route=q&message={msg}&numbers={phone}&flash=0"
+        try:
+            urllib.request.urlopen(url, timeout=8)
+        except Exception as e:
+            return jsonify({"error": f"SMS failed: {str(e)}"}), 500
+        return jsonify({"msg": "OTP sent to your phone", "dev_mode": False})
+
+    # Dev mode — return OTP in response (for testing without SMS credits)
+    return jsonify({"msg": "DEV MODE: OTP generated", "dev_mode": True, "otp": otp})
+
+# ── VERIFY OTP ────────────────────────────────────────────────────────────────
+@app.route("/verify-otp", methods=["POST"])
+def verify_otp():
+    phone = (request.json.get("phone") or "").strip()
+    otp   = (request.json.get("otp")   or "").strip()
+
+    record = otp_store.get(phone)
+    if not record:
+        return jsonify({"error": "No OTP found. Request a new one."}), 400
+    if time.time() > record["expires"]:
+        otp_store.pop(phone, None)
+        return jsonify({"error": "OTP expired. Request a new one."}), 400
+    if record["otp"] != otp:
+        return jsonify({"error": "Wrong OTP. Try again."}), 400
+
+    otp_store[phone]["verified"] = True
+    return jsonify({"msg": "Phone verified!"})
+
 # ── Priority algorithm ────────────────────────────────────────────────────────
 def calc_priority(o):
     waiting = time.time() - o["created_time"]
@@ -175,22 +231,39 @@ def register():
 
     role       = d.get("role", "student")
     canteen_id = d.get("canteen_id", None)
+    phone      = (d.get("phone") or "").strip()
 
     if role == "student" and not email.endswith(ALLOWED_DOMAIN):
         return jsonify({"error": f"Only {ALLOWED_DOMAIN} emails are allowed for students."}), 400
-    now        = time.time()
-    hashed     = generate_password_hash(d["password"])
+
+    # Validate phone OTP for students
+    if role == "student":
+        if not phone or not phone.isdigit() or len(phone) != 10:
+            return jsonify({"error": "A valid 10-digit phone number is required."}), 400
+        otp_record = otp_store.get(phone)
+        if not otp_record or not otp_record.get("verified"):
+            return jsonify({"error": "Phone not verified. Please verify OTP first."}), 400
+
+    # Extract enrollment number from email prefix
+    enrollment_no = email.split("@")[0].upper() if role == "student" else None
+
+    now    = time.time()
+    hashed = generate_password_hash(d["password"])
 
     conn, ph = db_conn()
     cur = conn.cursor()
     try:
         cur.execute(
-            f"INSERT INTO users(name, email, password, role, canteen_id, registered_at) "
-            f"VALUES ({ph},{ph},{ph},{ph},{ph},{ph})",
-            (d["name"], email, hashed, role, canteen_id, now)
+            f"INSERT INTO users(name, email, password, role, canteen_id, phone, enrollment_no, phone_verified, registered_at) "
+            f"VALUES ({ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph})",
+            (d["name"], email, hashed, role, canteen_id, phone if role=="student" else None,
+             enrollment_no, 1 if role=="student" else 0, now)
         )
         conn.commit()
         conn.close()
+        # Clear OTP after successful registration
+        if role == "student":
+            otp_store.pop(phone, None)
         return jsonify({"msg": "registered"})
 
     except Exception as e:
@@ -282,13 +355,22 @@ def canteen_orders():
 
     conn, ph = db_conn()
     cur  = conn.cursor()
-    cur.execute(f"SELECT * FROM orders WHERE canteen_id = {ph}", (user["canteen_id"],))
+    query = f"""
+        SELECT o.*,
+               u.name          AS student_name,
+               u.enrollment_no AS enrollment_no,
+               u.phone         AS student_phone
+        FROM orders o
+        LEFT JOIN users u ON o.student_id = u.id
+        WHERE o.canteen_id = {ph}
+    """
+    cur.execute(query, (user["canteen_id"],))
     rows = cur.fetchall()
     conn.close()
 
     result = []
     for r in rows:
-        o = dict(zip([d[0] for d in cur.description], r)) if USE_POSTGRES else dict(r)
+        o = dict(zip([d[0] for d in cur.description], r))
         o["items"]    = json.loads(o["items"])
         o["priority"] = round(calc_priority(o), 2)
         result.append(o)

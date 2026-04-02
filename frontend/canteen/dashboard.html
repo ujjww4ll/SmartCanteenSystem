@@ -595,6 +595,21 @@ function orderCard(o, qPos){
     `<div class="item-pill">${i.emoji || '🍽'} ${i.name} ×${i.qty||1}</div>`
   ).join('');
 
+  const studentInfo = `
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;
+                padding:8px 12px;background:rgba(255,159,74,0.05);
+                border:0.5px solid rgba(255,159,74,0.15);border-radius:10px;">
+      <span style="font-size:11px;font-weight:700;color:#ff9f4a;">👤 ${o.student_name||'Unknown'}</span>
+      <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9998aa;
+                   background:rgba(255,255,255,0.04);padding:2px 8px;border-radius:6px;
+                   border:0.5px solid rgba(72,71,81,0.4);">🎓 ${o.enrollment_no||'—'}</span>
+      ${o.student_phone ? `<a href="tel:+91${o.student_phone}"
+           style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:700;
+                  color:#4fffb0;text-decoration:none;padding:3px 10px;
+                  background:rgba(79,255,176,0.08);border:0.5px solid rgba(79,255,176,0.2);
+                  border-radius:9999px;">📞 +91 ${o.student_phone}</a>` : ''}
+    </div>`;
+
   const actionBtn = actionHTML(o);
 
   return `
@@ -610,6 +625,7 @@ function orderCard(o, qPos){
         <span class="priority-score">⚡ ${score}</span>
       </div>
       <div class="order-items">${itemPills}</div>
+      ${studentInfo}
       <div class="order-meta">
         <div class="meta-chip"><span>⏱</span> ${o.expected_time} min prep</div>
         <div class="meta-chip"><span>🛍</span> ${o.items_count} item${o.items_count>1?'s':''}</div>
