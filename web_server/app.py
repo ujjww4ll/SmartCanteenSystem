@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
 from werkzeug.security import generate_password_hash, check_password_hash
 import time, json, os
 
@@ -326,11 +326,13 @@ def login():
     conn.commit()
     conn.close()
 
-    token = create_access_token(identity={
-        "id":         u["id"],
-        "role":       u["role"],
-        "canteen_id": u["canteen_id"]
-    })
+    token = create_access_token(
+        identity=str(u["id"]),
+        additional_claims={
+            "role": u["role"],
+            "canteen_id": u["canteen_id"]
+        }
+    )
 
     return jsonify({
         "access_token": token,
@@ -365,8 +367,10 @@ def get_canteens():
 @app.route("/order/create", methods=["POST"])
 @jwt_required()
 def create_order():
-    user = get_jwt_identity()
-    if user["role"] != "student":
+    user_id = get_jwt_identity()
+    claims = get_jwt()
+    
+    if claims.get("role") != "student":
         return jsonify({"error": "Only students can place orders"}), 403
 
     d    = request.json
@@ -380,7 +384,7 @@ def create_order():
 
     cur.execute(
         f"INSERT INTO orders VALUES ({ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph})",
-        (oid, d["canteen_id"], user["id"],
+        (oid, d["canteen_id"], int(user_id),
          json.dumps(items), len(items),
          total_price, total_time,
          "WAITING", time.time(), None, None)
@@ -393,8 +397,10 @@ def create_order():
 @app.route("/canteen/orders", methods=["GET"])
 @jwt_required()
 def canteen_orders():
-    user = get_jwt_identity()
-    if user["role"] != "canteen":
+    user_id = get_jwt_identity()
+    claims = get_jwt()
+    
+    if claims.get("role") != "canteen":
         return jsonify({"error": "Only canteen staff can view this"}), 403
 
     conn, ph = db_conn()
@@ -408,7 +414,7 @@ def canteen_orders():
         LEFT JOIN users u ON o.student_id = u.id
         WHERE o.canteen_id = {ph}
     """
-    cur.execute(query, (user["canteen_id"],))
+    cur.execute(query, (claims.get("canteen_id"),))
     rows = cur.fetchall()
     
     result = []
