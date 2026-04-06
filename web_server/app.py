@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt, get_jwt
 from werkzeug.security import generate_password_hash, check_password_hash
 import time, json, os
 
@@ -68,7 +68,8 @@ def init_db():
             enrollment_no  TEXT,
             phone_verified INTEGER DEFAULT 0,
             registered_at  DOUBLE PRECISION DEFAULT 0,
-            last_login     DOUBLE PRECISION DEFAULT 0
+            last_login     DOUBLE PRECISION DEFAULT 0,
+            credits        DOUBLE PRECISION DEFAULT 0
         )""")
         cur.execute("""
         CREATE TABLE IF NOT EXISTS canteens(
@@ -87,8 +88,20 @@ def init_db():
             status        TEXT,
             created_time  DOUBLE PRECISION,
             accepted_time DOUBLE PRECISION,
-            ready_time    DOUBLE PRECISION
+            ready_time    DOUBLE PRECISION,
+            completed_time DOUBLE PRECISION,
+            late_penalty  DOUBLE PRECISION DEFAULT 0
         )""")
+        # Add missing columns if they don't exist
+        try:
+            cur.execute("ALTER TABLE users ADD COLUMN credits DOUBLE PRECISION DEFAULT 0")
+        except Exception:
+            pass
+        try:
+            cur.execute("ALTER TABLE orders ADD COLUMN completed_time DOUBLE PRECISION")
+            cur.execute("ALTER TABLE orders ADD COLUMN late_penalty DOUBLE PRECISION DEFAULT 0")
+        except Exception:
+            pass
     else:
         import sqlite3
         cur.execute("""
@@ -103,11 +116,13 @@ def init_db():
             enrollment_no  TEXT,
             phone_verified INTEGER DEFAULT 0,
             registered_at  REAL DEFAULT 0,
-            last_login     REAL DEFAULT 0
+            last_login     REAL DEFAULT 0,
+            credits        REAL DEFAULT 0
         )""")
         # Migrate existing tables safely
         for col, typ in [("registered_at","REAL DEFAULT 0"),("last_login","REAL DEFAULT 0"),
-                         ("phone","TEXT"),("enrollment_no","TEXT"),("phone_verified","INTEGER DEFAULT 0")]:
+                         ("phone","TEXT"),("enrollment_no","TEXT"),("phone_verified","INTEGER DEFAULT 0"),
+                         ("credits","REAL DEFAULT 0")]:
             try:
                 cur.execute(f"ALTER TABLE users ADD COLUMN {col} {typ}")
             except Exception:
@@ -130,8 +145,16 @@ def init_db():
             status        TEXT,
             created_time  REAL,
             accepted_time REAL,
-            ready_time    REAL
+            ready_time    REAL,
+            completed_time REAL,
+            late_penalty  REAL DEFAULT 0
         )""")
+        # Add missing columns
+        for col, typ in [("completed_time","REAL"),("late_penalty","REAL DEFAULT 0")]:
+            try:
+                cur.execute(f"ALTER TABLE orders ADD COLUMN {col} {typ}")
+            except Exception:
+                pass
 
     conn.commit()
     conn.close()
@@ -450,8 +473,120 @@ def order_status(oid):
         "status":        r["status"],
         "items":         json.loads(r["items"]),
         "price":         r["price"],
-        "expected_time": r["expected_time"]
+        "expected_time": r["expected_time"],
+        "created_time":  r["created_time"],
+        "accepted_time": r["accepted_time"],
+        "ready_time":    r["ready_time"],
+        "completed_time": r["completed_time"],
+        "late_penalty":  r["late_penalty"]
     })
+
+# ── GET STUDENT CREDITS ───────────────────────────────────────────────────────
+@app.route("/student/credits", methods=["GET"])
+@jwt_required()
+def get_credits():
+    user_id = get_jwt_identity()
+    claims = get_jwt()
+    
+    if claims.get("role") != "student":
+        return jsonify({"error": "Only students can view credits"}), 403
+    
+    conn, ph = db_conn()
+    cur = conn.cursor()
+    cur.execute(f"SELECT credits FROM users WHERE id = {ph}", (int(user_id),))
+    row = cur.fetchone()
+    conn.close()
+    
+    if not row:
+        return jsonify({"credits": 0}), 404
+    
+    credits = row[0] if USE_POSTGRES else row["credits"]
+    return jsonify({"credits": credits or 0})
+
+# ── GET ORDER HISTORY ─────────────────────────────────────────────────────────
+@app.route("/student/orders", methods=["GET"])
+@jwt_required()
+def get_order_history():
+    user_id = get_jwt_identity()
+    claims = get_jwt()
+    
+    if claims.get("role") != "student":
+        return jsonify({"error": "Only students can view orders"}), 403
+    
+    conn, ph = db_conn()
+    cur = conn.cursor()
+    query = f"SELECT * FROM orders WHERE student_id = {ph} ORDER BY created_time DESC LIMIT 10"
+    cur.execute(query, (int(user_id),))
+    rows = cur.fetchall()
+    conn.close()
+    
+    result = []
+    for row in rows:
+        o = row_to_dict(row, cur)
+        o["items"] = json.loads(o["items"])
+        result.append(o)
+    
+    return jsonify(result)
+
+# ── UPDATE ORDER STATUS & CALCULATE PENALTIES ─────────────────────────────────
+@app.route("/order/status/update/<int:oid>", methods=["POST"])
+@jwt_required()
+def update_order_status(oid):
+    user_id = get_jwt_identity()
+    claims = get_jwt()
+    
+    if claims.get("role") != "canteen":
+        return jsonify({"error": "Only canteen staff can update orders"}), 403
+    
+    d = request.json
+    next_status = d.get("status")
+    
+    if not next_status:
+        return jsonify({"error": "Status required"}), 400
+    
+    conn, ph = db_conn()
+    cur = conn.cursor()
+    
+    # Get current order
+    cur.execute(f"SELECT * FROM orders WHERE order_id = {ph}", (oid,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"error": "Order not found"}), 404
+    
+    order = row_to_dict(row, cur)
+    
+    # Calculate late penalty if completing
+    late_penalty = 0
+    now = time.time()
+    
+    if next_status == "COMPLETED":
+        order["completed_time"] = now
+        # Calculate minutes late
+        expected_completion = order["created_time"] + (order["expected_time"] * 60)
+        if now > expected_completion:
+            late_mins = int((now - expected_completion) / 60)
+            late_penalty = late_mins * 1  # ₹1 per minute
+            # Add credits to student
+            cur.execute(f"UPDATE users SET credits = credits + {ph} WHERE id = {ph}", 
+                       (late_penalty, order["student_id"]))
+    
+    # Update order status
+    status_col = "accepted_time" if next_status == "ACCEPTED" else \
+                 "ready_time" if next_status == "READY" else \
+                 "completed_time" if next_status == "COMPLETED" else None
+    
+    if status_col:
+        cur.execute(f"UPDATE orders SET status = {ph}, {status_col} = {ph}, late_penalty = {ph} WHERE order_id = {ph}",
+                   (next_status, now, late_penalty, oid))
+    else:
+        cur.execute(f"UPDATE orders SET status = {ph}, late_penalty = {ph} WHERE order_id = {ph}",
+                   (next_status, late_penalty, oid))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({"msg": "Order updated", "late_penalty": late_penalty})
 
 # ── STATE MACHINE ─────────────────────────────────────────────────────────────
 FLOW = {
@@ -465,34 +600,76 @@ FLOW = {
 def set_status(oid, next_status):
     conn, ph = db_conn()
     cur  = conn.cursor()
-    cur.execute(f"SELECT status FROM orders WHERE order_id = {ph}", (oid,))
+    cur.execute(f"SELECT status, created_time, expected_time, student_id FROM orders WHERE order_id = {ph}", (oid,))
     row = cur.fetchone()
-    if row:
-        current = row[0] if USE_POSTGRES else row["status"]
-        if next_status in FLOW.get(current, []):
-            cur.execute(f"UPDATE orders SET status = {ph} WHERE order_id = {ph}", (next_status, oid))
-            conn.commit()
+    if not row:
+        conn.close()
+        return None
+    
+    if USE_POSTGRES:
+        cols = [desc[0] for desc in cur.description]
+        order = dict(zip(cols, row))
+    else:
+        order = dict(row)
+    
+    current = order["status"]
+    if next_status not in FLOW.get(current, []):
+        conn.close()
+        return None
+    
+    now = time.time()
+    late_penalty = 0
+    
+    # Calculate late penalty if completing
+    if next_status == "COMPLETED":
+        expected_completion = order["created_time"] + (order["expected_time"] * 60)
+        if now > expected_completion:
+            late_mins = int((now - expected_completion) / 60)
+            late_penalty = late_mins * 1  # ₹1 per minute
+            # Add credits to student
+            cur.execute(f"UPDATE users SET credits = credits + {ph} WHERE id = {ph}", 
+                       (late_penalty, order["student_id"]))
+    
+    # Update with timestamp
+    if next_status == "ACCEPTED":
+        cur.execute(f"UPDATE orders SET status = {ph}, accepted_time = {ph} WHERE order_id = {ph}", 
+                   (next_status, now, oid))
+    elif next_status == "READY":
+        cur.execute(f"UPDATE orders SET status = {ph}, ready_time = {ph} WHERE order_id = {ph}", 
+                   (next_status, now, oid))
+    elif next_status == "COMPLETED":
+        cur.execute(f"UPDATE orders SET status = {ph}, completed_time = {ph}, late_penalty = {ph} WHERE order_id = {ph}",
+                   (next_status, now, late_penalty, oid))
+    else:
+        cur.execute(f"UPDATE orders SET status = {ph} WHERE order_id = {ph}", (next_status, oid))
+    
+    conn.commit()
     conn.close()
+    return {"late_penalty": late_penalty}
 
 @app.route("/order/accept",    methods=["POST"])
 @jwt_required()
 def accept():
-    set_status(request.json["order_id"], "ACCEPTED");   return jsonify({"ok": 1})
+    result = set_status(request.json["order_id"], "ACCEPTED")
+    return jsonify({"ok": 1} if result is not None else {"error": "Failed"})
 
 @app.route("/order/preparing", methods=["POST"])
 @jwt_required()
 def preparing():
-    set_status(request.json["order_id"], "PREPARING");  return jsonify({"ok": 1})
+    result = set_status(request.json["order_id"], "PREPARING")
+    return jsonify({"ok": 1} if result is not None else {"error": "Failed"})
 
 @app.route("/order/ready",     methods=["POST"])
 @jwt_required()
 def ready():
-    set_status(request.json["order_id"], "READY");      return jsonify({"ok": 1})
+    result = set_status(request.json["order_id"], "READY")
+    return jsonify({"ok": 1} if result is not None else {"error": "Failed"})
 
 @app.route("/order/complete",  methods=["POST"])
 @jwt_required()
 def complete():
-    set_status(request.json["order_id"], "COMPLETED");  return jsonify({"ok": 1})
+    result = set_status(request.json["order_id"], "COMPLETED")
+    return jsonify({"ok": result.get("late_penalty", 0)} if result else {"error": "Failed"})
 
 # ── Run locally ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
