@@ -1248,15 +1248,23 @@ async function loadCredits(){
     if(creditsDisplay) creditsDisplay.textContent = `💳 ₹${data.credits || 0}`;
     document.getElementById('modalCreditsValue').textContent = data.credits || 0;
   } catch(e) {
-    console.error(e);
+    console.error('Credits error:', e);
   }
   
   try {
+    const token = localStorage.getItem('student_token');
+    console.log('Fetching orders with token:', token ? 'present' : 'missing');
     const res = await fetch(`${API}/student/orders`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('student_token')}` }
+      headers: { Authorization: `Bearer ${token}` }
     });
-    if(!res.ok) throw new Error('Failed to load orders');
+    console.log('Orders response status:', res.status);
+    if(!res.ok) {
+      const errText = await res.text();
+      console.error('Orders error response:', errText);
+      throw new Error(`HTTP ${res.status}: ${errText}`);
+    }
     const orders = await res.json();
+    console.log('Orders loaded:', orders);
     
     const html = orders.map(o => `
       <div style="
@@ -1284,8 +1292,8 @@ async function loadCredits(){
     
     document.getElementById('ordersListModal').innerHTML = html || '<div style="color:#9998aa;text-align:center;padding:16px;">No orders yet</div>';
   } catch(e) {
-    console.error(e);
-    document.getElementById('ordersListModal').innerHTML = '<div style="color:#fca5a5;">Error loading orders</div>';
+    console.error('Orders error:', e);
+    document.getElementById('ordersListModal').innerHTML = `<div style="color:#fca5a5;">Error: ${e.message}</div>`;
   }
 }
 

@@ -485,48 +485,60 @@ def order_status(oid):
 @app.route("/student/credits", methods=["GET"])
 @jwt_required()
 def get_credits():
-    user_id = get_jwt_identity()
-    claims = get_jwt()
-    
-    if claims.get("role") != "student":
-        return jsonify({"error": "Only students can view credits"}), 403
-    
-    conn, ph = db_conn()
-    cur = conn.cursor()
-    cur.execute(f"SELECT credits FROM users WHERE id = {ph}", (int(user_id),))
-    row = cur.fetchone()
-    conn.close()
-    
-    if not row:
-        return jsonify({"credits": 0}), 404
-    
-    credits = row[0] if USE_POSTGRES else row["credits"]
-    return jsonify({"credits": credits or 0})
+    try:
+        user_id = get_jwt_identity()
+        claims = get_jwt()
+        
+        if claims.get("role") != "student":
+            return jsonify({"error": "Only students can view credits"}), 403
+        
+        conn, ph = db_conn()
+        cur = conn.cursor()
+        cur.execute(f"SELECT credits FROM users WHERE id = {ph}", (int(user_id),))
+        row = cur.fetchone()
+        conn.close()
+        
+        if not row:
+            return jsonify({"credits": 0}), 200
+        
+        credits = row[0] if USE_POSTGRES else row["credits"]
+        return jsonify({"credits": float(credits or 0)})
+    except Exception as e:
+        print(f"Error in get_credits: {e}")
+        return jsonify({"error": str(e)}), 500
 
 # ── GET ORDER HISTORY ─────────────────────────────────────────────────────────
 @app.route("/student/orders", methods=["GET"])
 @jwt_required()
 def get_order_history():
-    user_id = get_jwt_identity()
-    claims = get_jwt()
-    
-    if claims.get("role") != "student":
-        return jsonify({"error": "Only students can view orders"}), 403
-    
-    conn, ph = db_conn()
-    cur = conn.cursor()
-    query = f"SELECT * FROM orders WHERE student_id = {ph} ORDER BY created_time DESC LIMIT 10"
-    cur.execute(query, (int(user_id),))
-    rows = cur.fetchall()
-    
-    result = []
-    for row in rows:
-        o = row_to_dict(row, cur)
-        o["items"] = json.loads(o["items"])
-        result.append(o)
-    
-    conn.close()
-    return jsonify(result)
+    try:
+        user_id = get_jwt_identity()
+        claims = get_jwt()
+        
+        if claims.get("role") != "student":
+            return jsonify({"error": "Only students can view orders"}), 403
+        
+        conn, ph = db_conn()
+        cur = conn.cursor()
+        query = f"SELECT * FROM orders WHERE student_id = {ph} ORDER BY created_time DESC LIMIT 10"
+        cur.execute(query, (int(user_id),))
+        rows = cur.fetchall()
+        
+        result = []
+        for row in rows:
+            try:
+                o = row_to_dict(row, cur)
+                o["items"] = json.loads(o.get("items", "[]"))
+                result.append(o)
+            except Exception as e:
+                print(f"Error converting row: {e}")
+                continue
+        
+        conn.close()
+        return jsonify(result)
+    except Exception as e:
+        print(f"Error in get_order_history: {e}")
+        return jsonify({"error": str(e)}), 500
 
 # ── UPDATE ORDER STATUS & CALCULATE PENALTIES ─────────────────────────────────
 @app.route("/order/status/update/<int:oid>", methods=["POST"])
