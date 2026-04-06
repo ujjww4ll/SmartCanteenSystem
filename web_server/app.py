@@ -410,14 +410,15 @@ def canteen_orders():
     """
     cur.execute(query, (user["canteen_id"],))
     rows = cur.fetchall()
-    conn.close()
-
+    
     result = []
     for r in rows:
-        o = dict(zip([d[0] for d in cur.description], r))
+        o = row_to_dict(r, cur)
         o["items"]    = json.loads(o["items"])
         o["priority"] = round(calc_priority(o), 2)
         result.append(o)
+    
+    conn.close()
 
     result.sort(key=lambda x: x["priority"])
     for i, o in enumerate(result):
