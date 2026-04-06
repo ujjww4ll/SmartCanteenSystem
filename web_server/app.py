@@ -227,20 +227,18 @@ def send_otp():
     otp = str(random.randint(100000, 999999))
     otp_store[email] = {"otp": otp, "expires": time.time() + 600, "verified": False}
 
-    dev_mode = not bool(SMTP_EMAIL and SMTP_PASSWORD)
-
-    if dev_mode:
-        # Dev mode — no SMTP configured, return OTP in response
+    # If SMTP not configured, return dev mode
+    if not SMTP_EMAIL or not SMTP_PASSWORD:
         return jsonify({"msg": "DEV MODE: OTP generated (no SMTP configured)",
                         "dev_mode": True, "otp": otp}), 200
     
-    # Prod mode — try to send email
-    if send_email(email, otp):
+    # Try to send real email
+    try:
+        send_email(email, otp)
         return jsonify({"msg": f"OTP sent to {email}", "dev_mode": False}), 200
-    else:
-        # Fall back to dev mode if email fails
-        return jsonify({"msg": "DEV MODE: Email service unavailable. OTP shown below.",
-                        "dev_mode": True, "otp": otp}), 200
+    except Exception as e:
+        print(f"Email error: {e}")
+        return jsonify({"error": f"Email service failed: {str(e)}"}), 500
 
 # ── VERIFY OTP ────────────────────────────────────────────────────────────────
 @app.route("/verify-otp", methods=["POST"])
