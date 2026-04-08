@@ -1489,14 +1489,14 @@ window.addEventListener('load', async () => {
 
 <script>
 let isMusicPlaying = true;
-const MAX_VOLUME = 0.4; // Max volume capped at 40%
+const MAX_VOLUME = 0.1; // Max volume capped at 10% - cannot go louder
 
 function toggleMusic() {
   const audio = document.getElementById('bgMusic');
   const icon = document.getElementById('musicIcon');
   
   if(audio.paused) {
-    audio.volume = MAX_VOLUME; // Reset to max allowed volume
+    audio.volume = MAX_VOLUME; // Set to max allowed 10%
     audio.play().catch(e => console.log('Play failed:', e));
     icon.textContent = '🔊';
     isMusicPlaying = true;
