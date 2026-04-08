@@ -233,6 +233,77 @@
       display: block; text-align: center;
     }
     .btn-back:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); }
+
+    /* Countdown timer */
+    .countdown-area {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 20px 24px;
+      margin-bottom: 16px;
+      text-align: center;
+      display: none;
+      transition: border-color 0.5s;
+    }
+    .countdown-label {
+      font-size: 11px; font-weight: 700; color: var(--text-muted);
+      letter-spacing: 1.2px; text-transform: uppercase; margin-bottom: 10px;
+    }
+    .countdown-digits {
+      font-family: 'Outfit', sans-serif;
+      font-size: 52px; font-weight: 900;
+      letter-spacing: -2px;
+      background: linear-gradient(135deg, var(--orange), var(--amber));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      transition: all 0.4s;
+    }
+    .countdown-digits.warning { background: none; -webkit-text-fill-color: #fb923c; color: #fb923c; }
+    .countdown-digits.danger  { background: none; -webkit-text-fill-color: #ef4444; color: #ef4444;
+      animation: countPulse 0.8s ease-in-out infinite; }
+    .countdown-digits.late    { background: none; -webkit-text-fill-color: #ef4444; color: #ef4444; }
+    @keyframes countPulse {
+      0%,100% { transform: scale(1); }
+      50%     { transform: scale(1.04); }
+    }
+    .countdown-sub { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+
+    /* Alert banners */
+    .alert-banner {
+      border-radius: 16px;
+      padding: 14px 20px;
+      margin-bottom: 14px;
+      font-size: 13px; font-weight: 700;
+      display: none;
+      text-align: center;
+      line-height: 1.5;
+    }
+    .alert-warn {
+      background: rgba(251,146,60,0.14);
+      border: 1px solid rgba(251,146,60,0.45);
+      color: #fb923c;
+    }
+    .alert-danger {
+      background: rgba(239,68,68,0.15);
+      border: 1px solid rgba(239,68,68,0.5);
+      color: #fca5a5;
+      animation: pulse 0.8s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity:1; box-shadow: 0 0 0 rgba(239,68,68,0); }
+      50%     { opacity:0.9; box-shadow: 0 0 18px rgba(239,68,68,0.3); }
+    }
+    .alert-credits {
+      background: rgba(34,197,94,0.12);
+      border: 1px solid rgba(34,197,94,0.4);
+      color: #4ade80;
+      font-size: 15px;
+      animation: creditsPop 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+    }
+    @keyframes creditsPop {
+      from { opacity:0; transform: scale(0.92) translateY(8px); }
+      to   { opacity:1; transform: scale(1) translateY(0); }
+    }
   </style>
 </head>
 <body>
@@ -328,6 +399,18 @@
       <div id="items" style="color:var(--text-muted);font-size:14px;">Loading...</div>
     </div>
 
+    <!-- Countdown Timer -->
+    <div class="countdown-area" id="countdownArea">
+      <div class="countdown-label">⏱ Preparation Time Remaining</div>
+      <div class="countdown-digits" id="countdownDigits">--:--</div>
+      <div class="countdown-sub" id="countdownSub">Staff promised this time when accepting your order</div>
+    </div>
+
+    <!-- Alert banners -->
+    <div class="alert-banner alert-warn"   id="alertWarn"></div>
+    <div class="alert-banner alert-danger" id="alertDanger"></div>
+    <div class="alert-banner alert-credits" id="alertCredits"></div>
+
     <a href="index.html" class="btn-back">← Back to Canteens</a>
 
   </div>
@@ -344,7 +427,8 @@ const STATUS_INFO = {
 
 const STEPS = ["WAITING","ACCEPTED","PREPARING","READY","COMPLETED"];
 
-let lastStatus = null;
+let lastStatus  = null;
+let countdownInt = null;  // setInterval handle for countdown
 
 function formatTime(unix_timestamp) {
   if (!unix_timestamp) return "—";
@@ -410,7 +494,47 @@ function updateUI(o) {
   } else if (o.status === "COMPLETED") {
     card.style.borderColor = "#ffd60a";
     card.style.boxShadow   = "0 0 40px rgba(255,214,10,0.2)";
+  } else {
+    card.style.borderColor = "";
+    card.style.boxShadow   = "";
   }
+
+  // ── Countdown + Alerts ────────────────────────────────────────────────
+  const countdownArea   = document.getElementById("countdownArea");
+  const alertWarn       = document.getElementById("alertWarn");
+  const alertDanger     = document.getElementById("alertDanger");
+  const alertCredits    = document.getElementById("alertCredits");
+
+  // Clear any running counter
+  if (countdownInt) { clearInterval(countdownInt); countdownInt = null; }
+
+  // Hide everything first
+  countdownArea.style.display = "none";
+  alertWarn.style.display     = "none";
+  alertDanger.style.display   = "none";
+  alertCredits.style.display  = "none";
+
+  if ((o.status === "ACCEPTED" || o.status === "PREPARING") && o.accepted_time && o.expected_time) {
+    // Deadline = when staff accepted + prep time they promised
+    const deadline = o.accepted_time + (o.expected_time * 60);
+    countdownArea.style.display = "block";
+    startCountdown(deadline);
+
+  } else if (o.status === "COMPLETED" && o.late_penalty > 0) {
+    // Show credits earned
+    alertCredits.style.display = "block";
+    alertCredits.innerHTML     = `🎉 You earned <strong>₹${o.late_penalty}</strong> credits because your order was delivered late! Check your wallet ★`;
+
+  } else if (o.status === "READY") {
+    // Order is ready — clear everything (no penalty if ready on time)
+    if (o.late_penalty > 0) {
+      alertCredits.style.display = "block";
+      alertCredits.innerHTML     = `💳 Earned <strong>₹${o.late_penalty}</strong> credits due to late preparation!`;
+    }
+  }
+
+  // Refresh credits badge in nav (if present)
+  refreshNavCredits(o.late_penalty, o.status);
 
   // Toast only once per status change
   if (o.status !== lastStatus) {
@@ -419,6 +543,79 @@ function updateUI(o) {
   }
 }
 
+// ── Countdown function ────────────────────────────────────────────────────────
+function startCountdown(deadline) {
+  const digits    = document.getElementById("countdownDigits");
+  const subText   = document.getElementById("countdownSub");
+  const alertWarn = document.getElementById("alertWarn");
+  const alertDang = document.getElementById("alertDanger");
+
+  function tick() {
+    const remaining = deadline - Date.now() / 1000;
+    const absR      = Math.abs(remaining);
+    const m = Math.floor(absR / 60);
+    const s = Math.floor(absR % 60);
+    const timeStr = `${m}:${s < 10 ? '0' : ''}${s}`;
+
+    if (remaining <= 0) {
+      // Late
+      const lateMins = Math.floor(absR / 60);
+      const penalty  = lateMins + 1;   // always at least ₹1 when past deadline
+      digits.className = "countdown-digits late";
+      digits.textContent = "+" + timeStr;
+      subText.textContent = "\u26a0\ufe0f Order is running LATE — credits are accumulating!";
+      alertDang.style.display = "block";
+      alertDang.innerHTML = `⌛ Order is <strong>${lateMins > 0 ? lateMins + ' min ' : ''}${Math.floor(absR%60)}s</strong> late! ` +
+                            `You're earning <strong>\u20b9${penalty}+</strong> in credits automatically!`;
+      alertWarn.style.display = "none";
+    } else if (remaining <= 60) {
+      // < 1 min — danger
+      digits.className = "countdown-digits danger";
+      digits.textContent = timeStr;
+      subText.textContent = "\uD83D\uDEA8 Almost there! Order due any second.";
+      alertDang.style.display = "block";
+      alertDang.innerHTML = `\uD83D\uDEA8 Under <strong>1 minute</strong> left! If late, you'll earn \u20b91+ in credits.`;
+      alertWarn.style.display = "none";
+    } else if (remaining <= 180) {
+      // < 3 min — warning
+      digits.className = "countdown-digits warning";
+      digits.textContent = timeStr;
+      subText.textContent = "\u26a1 Order should be ready very soon!";
+      alertWarn.style.display = "block";
+      alertWarn.innerHTML = `\u23f0 Only <strong>${Math.ceil(remaining/60)} minute${Math.ceil(remaining/60)>1?'s':''}</strong> left ` +
+                            `— keep an eye out!`;
+      alertDang.style.display = "none";
+    } else {
+      // Plenty of time
+      digits.className = "countdown-digits";
+      digits.textContent = timeStr;
+      subText.textContent = "Staff promised this time when accepting your order";
+      alertWarn.style.display = "none";
+      alertDang.style.display = "none";
+    }
+  }
+
+  tick();
+  countdownInt = setInterval(tick, 1000);
+}
+
+// ── Refresh credits badge in navbar ──────────────────────────────────────────
+let lastCreditCheck = 0;
+function refreshNavCredits(penalty, status) {
+  if (status !== "COMPLETED") return;
+  if (penalty <= 0) return;
+  const now = Date.now();
+  if (now - lastCreditCheck < 10000) return;   // debounce
+  lastCreditCheck = now;
+  fetch(API + "/student/credits", { headers: authHeaders("student") })
+    .then(r => r.json())
+    .then(d => {
+      const el = document.getElementById("creditsDisplay");
+      if (el) el.textContent = "\u{1F4B3} \u20b9" + (d.credits || 0);
+    }).catch(() => {});
+}
+
+// ── Polling ───────────────────────────────────────────────────────────────────
 // Override pollStudent to use updateUI
 const orderId = localStorage.getItem("student_order");
 if (orderId) {

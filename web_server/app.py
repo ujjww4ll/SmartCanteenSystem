@@ -647,13 +647,14 @@ def update_order_status(oid):
     
     if next_status == "COMPLETED":
         order["completed_time"] = now
-        # Calculate minutes late
-        expected_completion = order["created_time"] + (order["expected_time"] * 60)
+        # Use accepted_time as base (that's when prep timer started)
+        base_time = order.get("accepted_time") or order["created_time"]
+        expected_completion = base_time + (order["expected_time"] * 60)
         if now > expected_completion:
             late_mins = int((now - expected_completion) / 60)
             late_penalty = late_mins * 1  # ₹1 per minute
-            # Add credits to student
-            cur.execute(f"UPDATE users SET credits = credits + {ph} WHERE id = {ph}", 
+            # Credit the student
+            cur.execute(f"UPDATE users SET credits = credits + {ph} WHERE id = {ph}",
                        (late_penalty, order["student_id"]))
     
     # Update order status
@@ -685,7 +686,7 @@ FLOW = {
 def set_status(oid, next_status, prep_time=None):
     conn, ph = db_conn()
     cur  = conn.cursor()
-    cur.execute(f"SELECT status, created_time, expected_time, student_id FROM orders WHERE order_id = {ph}", (oid,))
+    cur.execute(f"SELECT status, created_time, expected_time, student_id, accepted_time FROM orders WHERE order_id = {ph}", (oid,))
     row = cur.fetchone()
     if not row:
         conn.close()
@@ -705,14 +706,15 @@ def set_status(oid, next_status, prep_time=None):
     now = time.time()
     late_penalty = 0
     
-    # Calculate late penalty if completing
     if next_status == "COMPLETED":
-        expected_completion = order["created_time"] + (order["expected_time"] * 60)
+        # Use accepted_time as base (that's when the prep timer started)
+        base_time = order.get("accepted_time") or order["created_time"]
+        expected_completion = base_time + (order["expected_time"] * 60)
         if now > expected_completion:
             late_mins = int((now - expected_completion) / 60)
             late_penalty = late_mins * 1  # ₹1 per minute
-            # Add credits to student
-            cur.execute(f"UPDATE users SET credits = credits + {ph} WHERE id = {ph}", 
+            # Credit the student
+            cur.execute(f"UPDATE users SET credits = credits + {ph} WHERE id = {ph}",
                        (late_penalty, order["student_id"]))
     
     # Update with timestamp
