@@ -1456,13 +1456,10 @@ window.addEventListener('load', () => {
   Your browser does not support the audio element.
 </audio>
 
-<!-- Music Player Controls (optional) -->
-<div style="position: fixed; bottom: 20px; right: 20px; z-index: 100; background: rgba(255, 159, 74, 0.9); padding: 12px 16px; border-radius: 50px; backdrop-filter: blur(10px); box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
-  <button onclick="toggleMusic()" style="background: none; border: none; color: white; font-size: 20px; cursor: pointer; padding: 4px 8px;">
-    <span id="musicIcon">🔊</span>
-  </button>
-  <input id="volumeSlider" type="range" min="0" max="100" value="40" onchange="adjustVolume(this.value)" style="width: 80px; vertical-align: middle; margin-left: 8px; cursor: pointer;">
-</div>
+<!-- Music Player Toggle Button -->
+<button onclick="toggleMusic()" style="position: fixed; bottom: 20px; right: 20px; z-index: 100; background: rgba(255, 159, 74, 0.9); border: none; color: white; font-size: 20px; cursor: pointer; padding: 12px 16px; border-radius: 50px; backdrop-filter: blur(10px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: all 0.3s ease;">
+  <span id="musicIcon">🔊</span>
+</button>
 
 <script>
 let isMusicPlaying = true;
@@ -1470,6 +1467,7 @@ let isMusicPlaying = true;
 function toggleMusic() {
   const audio = document.getElementById('bgMusic');
   const icon = document.getElementById('musicIcon');
+  const button = event.target.closest('button');
   
   if(isMusicPlaying) {
     audio.pause();
@@ -1480,11 +1478,6 @@ function toggleMusic() {
     icon.textContent = '🔊';
     isMusicPlaying = true;
   }
-}
-
-function adjustVolume(value) {
-  const audio = document.getElementById('bgMusic');
-  audio.volume = value / 100; // Convert 0-100 to 0-1
 }
 </script>
 
