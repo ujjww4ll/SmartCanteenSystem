@@ -254,6 +254,41 @@
       background: rgba(255, 159, 74, 0.5);
     }
 
+    /* ── Navbar Search ────────────────────────────────────── */
+    #navSearchInput {
+      transition: all 0.3s ease !important;
+    }
+    #navSearchInput:focus {
+      background: rgba(255, 159, 74, 0.12) !important;
+      border-color: rgba(255, 159, 74, 0.6) !important;
+      box-shadow: 0 0 20px rgba(255, 159, 74, 0.2) !important;
+    }
+    #navSearchResults::-webkit-scrollbar {
+      width: 6px;
+    }
+    #navSearchResults::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    #navSearchResults::-webkit-scrollbar-thumb {
+      background: rgba(255, 159, 74, 0.3);
+      border-radius: 3px;
+    }
+    #navSearchResults::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 159, 74, 0.5);
+    }
+
+    @media (max-width: 900px) {
+      nav > div:nth-child(2) {
+        max-width: 280px !important;
+        margin: 0 16px !important;
+      }
+    }
+    @media (max-width: 700px) {
+      nav > div:nth-child(2) {
+        display: none;
+      }
+    }
+
     /* ── Hero ─────────────────────────────────────────────── */
     .hero {
       position: relative; z-index: 1;
@@ -805,6 +840,44 @@
     <div class="nav-logo-badge">🍽️</div>
     <span><span class="logo-gradient">B.U</span> Eats</span>
   </a>
+
+  <!-- Search Bar (Navbar Search) -->
+  <div style="position: relative; flex: 1; max-width: 400px; margin: 0 32px;">
+    <input 
+      id="navSearchInput" 
+      type="text" 
+      placeholder="🔍 Search items..."
+      style="
+        width: 100%;
+        padding: 10px 16px;
+        background: rgba(255, 159, 74, 0.08);
+        border: 1px solid rgba(255, 159, 74, 0.3);
+        border-radius: 24px;
+        color: var(--on-surface);
+        font-family: 'Manrope', sans-serif;
+        font-size: 13px;
+        outline: none;
+        transition: all 0.3s ease;
+      "
+      oninput="filterMenuItems(this.value)"
+    />
+    <div id="navSearchResults" style="
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      margin-top: 8px;
+      background: var(--bg-card);
+      border: 1px solid rgba(255, 159, 74, 0.2);
+      border-radius: var(--radius-lg);
+      max-height: 350px;
+      overflow-y: auto;
+      z-index: 1000;
+      display: none;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    "></div>
+  </div>
+
   <ul class="nav-links">
     <li><a href="#canteens">Canteens</a></li>
     <li><a href="#features">Features</a></li>
@@ -897,45 +970,6 @@
   <div class="section-eyebrow reveal">🏪 Our Canteens</div>
   <div class="section-title reveal">Pick Your <span class="gradient-text">Spot</span></div>
   <div class="section-sub reveal">Four unique canteens, each with their own specialty. Login required to order.</div>
-
-  <!-- Search Bar -->
-  <div style="margin-bottom: 48px; margin-top: 40px;">
-    <div style="position: relative; max-width: 600px; margin: 0 auto;">
-      <input 
-        id="searchInput" 
-        type="text" 
-        placeholder="🔍 Search maggi, dosa, burger... Find items across all canteens"
-        style="
-          width: 100%;
-          padding: 16px 20px;
-          background: rgba(255, 159, 74, 0.08);
-          border: 1.5px solid rgba(255, 159, 74, 0.3);
-          border-radius: 50px;
-          color: var(--on-surface);
-          font-family: 'Manrope', sans-serif;
-          font-size: 14px;
-          outline: none;
-          transition: all 0.3s ease;
-        "
-        oninput="filterMenuItems(this.value)"
-      />
-      <div id="searchResults" style="
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        margin-top: 8px;
-        background: var(--bg-card);
-        border: 1px solid rgba(255, 159, 74, 0.2);
-        border-radius: var(--radius-lg);
-        max-height: 400px;
-        overflow-y: auto;
-        z-index: 1000;
-        display: none;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-      "></div>
-    </div>
-  </div>
 
   <div class="canteen-grid">
 
@@ -1266,7 +1300,7 @@ const CANTEENS = [
 // Real-time search and filter
 function filterMenuItems(searchTerm) {
   const query = searchTerm.trim().toLowerCase();
-  const resultsDiv = document.getElementById('searchResults');
+  const resultsDiv = document.getElementById('navSearchResults');
   
   if(!query) {
     resultsDiv.style.display = 'none';
@@ -1330,8 +1364,8 @@ function orderItem(itemName, canteenId) {
 
 // Close search results when clicking outside
 document.addEventListener('click', (e) => {
-  if(!e.target.closest('#searchInput') && !e.target.closest('#searchResults')) {
-    document.getElementById('searchResults').style.display = 'none';
+  if(!e.target.closest('#navSearchInput') && !e.target.closest('#navSearchResults')) {
+    document.getElementById('navSearchResults').style.display = 'none';
   }
 });
 
