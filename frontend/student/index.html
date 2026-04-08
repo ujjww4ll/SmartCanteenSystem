@@ -1439,18 +1439,10 @@ window.addEventListener('load', async () => {
   }
 });
 
-// Background music player with medium volume
-const audio = document.getElementById('bgMusic');
-if(audio) {
-  audio.volume = 0.4; // Medium volume (0-1 scale, 0.4 = 40%)
-  audio.muted = false; // Ensure unmuted
-  audio.play(); // Play immediately
-}
-
 </script>
 
 <!-- Background Music -->
-<audio id="bgMusic" loop autoplay style="display:none;">
+<audio id="bgMusic" loop autoplay muted style="display:none;">
   <source src="../assets/background-music.mp3" type="audio/mpeg">
   Your browser does not support the audio element.
 </audio>
@@ -1461,6 +1453,14 @@ if(audio) {
 </button>
 
 <script>
+// Background music player with medium volume
+const audio = document.getElementById('bgMusic');
+if(audio) {
+  audio.volume = 0.4; // Medium volume (0-1 scale, 0.4 = 40%)
+  audio.muted = false; // Ensure unmuted
+  audio.play().catch(e => console.log('Play attempt:', e));
+}
+
 let isMusicPlaying = true;
 
 function toggleMusic() {
