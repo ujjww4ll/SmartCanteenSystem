@@ -1444,14 +1444,28 @@ window.addEventListener('load', () => {
   const audio = document.getElementById('bgMusic');
   if(audio) {
     audio.volume = 0.4; // Medium volume (0-1 scale, 0.4 = 40%)
-    audio.play().catch(e => console.log('Autoplay prevented:', e));
+    audio.muted = false; // Start unmuted
+    audio.play().catch(e => {
+      console.log('Autoplay blocked by browser, will play on user interaction');
+      isMusicPlaying = false;
+    });
   }
 });
+
+// Try to play when user first interacts with page
+document.addEventListener('click', () => {
+  if(!isMusicPlaying) {
+    const audio = document.getElementById('bgMusic');
+    if(audio && audio.paused) {
+      audio.play().catch(e => console.log('Play failed:', e));
+    }
+  }
+}, { once: true });
 
 </script>
 
 <!-- Background Music -->
-<audio id="bgMusic" loop style="display:none;">
+<audio id="bgMusic" loop autoplay style="display:none;">
   <source src="../assets/background-music.mp3" type="audio/mpeg">
   Your browser does not support the audio element.
 </audio>
@@ -1467,16 +1481,15 @@ let isMusicPlaying = true;
 function toggleMusic() {
   const audio = document.getElementById('bgMusic');
   const icon = document.getElementById('musicIcon');
-  const button = event.target.closest('button');
   
-  if(isMusicPlaying) {
+  if(audio.paused) {
+    audio.play().catch(e => console.log('Play failed:', e));
+    icon.textContent = '🔊';
+    isMusicPlaying = true;
+  } else {
     audio.pause();
     icon.textContent = '🔇';
     isMusicPlaying = false;
-  } else {
-    audio.play();
-    icon.textContent = '🔊';
-    isMusicPlaying = true;
   }
 }
 </script>
