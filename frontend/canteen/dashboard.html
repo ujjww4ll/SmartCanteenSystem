@@ -243,7 +243,7 @@
     .queue-pos-label { font-size: 8px; color: var(--muted); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
 
     /* Order info */
-    .order-info {}
+    .order-info { flex: 1; min-width: 0; }
     .order-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
     .order-id {
       font-family: 'JetBrains Mono', monospace;
@@ -410,6 +410,7 @@
       color: var(--muted);
     }
     .modal-btn-cancel:hover { background: rgba(255, 159, 74, 0.04); border-color: var(--primary); color: var(--primary); }
+    .modal-btn-confirm {
       display: flex; align-items: center; justify-content: center; gap: 6px;
     }
     .btn-accept   { background: linear-gradient(135deg,#ffe393,#ff9f4a); color: #1a0a00; box-shadow: 0 4px 16px rgba(255,159,74,0.3); }
@@ -421,6 +422,25 @@
     .btn-complete { background: rgba(153,152,170,0.12); color: var(--muted); border: 0.5px solid var(--outline); }
     .btn-complete:hover { background: rgba(153,152,170,0.2); }
     .btn-done-tag { background: rgba(79,255,176,0.08); color: var(--green); border: 0.5px solid rgba(79,255,176,0.2); font-size: 11px; padding: 6px; text-align:center; border-radius: 8px; }
+
+    /* ── Live countdown timer ── */
+    .order-timer {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px;
+      background: rgba(79,255,176,0.06);
+      border: 1px solid rgba(79,255,176,0.25);
+      border-radius: 12px;
+      margin-top: 10px;
+      transition: background 0.4s, border-color 0.4s;
+    }
+    .timer-label { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: 0.5px; }
+    .timer-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 20px; font-weight: 800;
+      color: #4fffb0; letter-spacing: -0.5px;
+      transition: color 0.3s;
+    }
+    .timer-penalty { font-size: 10px; color: #ff6b6b; font-weight: 700; margin-top: 2px; }
 
     /* ── Priority info panel ── */
     .algo-panel {
@@ -749,33 +769,18 @@ function orderCard(o, qPos){
 
   const actionBtn = actionHTML(o);
   
-  // Timer for ACCEPTED orders
+  // Live countdown for ACCEPTED and PREPARING orders
   let timerDisplay = '';
-  if (o.status === 'ACCEPTED' && o.accepted_time) {
-    const acceptedTime = o.accepted_time * 1000;
-    const expectedCompTime = o.created_time * 1000 + (o.expected_time * 60 * 1000);
-    const elapsedMins = Math.floor((Date.now() - acceptedTime) / 60000);
-    const expectedRemaining = Math.max(0, Math.floor((expectedCompTime - Date.now()) / 60000));
-    
+  if ((o.status === 'ACCEPTED' || o.status === 'PREPARING') && o.accepted_time && o.expected_time) {
+    const deadline = o.accepted_time + (o.expected_time * 60);
     timerDisplay = `
-      <div style="padding:10px 12px;background:rgba(107,184,255,0.08);border:1px solid rgba(107,184,255,0.25);
-                  border-radius:12px;margin-top:10px;display:flex;gap:14px;">
-        <div style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:700;">
-          <span style="font-size:16px;">⏱️</span>
-          <div>
-            <div style="color:#9998aa;font-size:10px;">Prep Started</div>
-            <div style="color:#6bb8ff;">${elapsedMins}m ago</div>
-          </div>
+      <div class="order-timer" data-deadline="${deadline}">
+        <div>
+          <div class="timer-label">⏱ Time Remaining Until Ready</div>
+          <div class="timer-penalty" style="display:none;"> </div>
         </div>
-        <div style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:700;">
-          <span style="font-size:16px;">⏳</span>
-          <div>
-            <div style="color:#9998aa;font-size:10px;">🔔 Ready In</div>
-            <div style="color:#${expectedRemaining <= 2 ? 'ffb347' : '4fffb0'};">${expectedRemaining}m</div>
-          </div>
-        </div>
-      </div>
-    `;
+        <span class="timer-value" data-deadline="${deadline}">--:--</span>
+      </div>`;
   }
 
   return `
@@ -794,7 +799,7 @@ function orderCard(o, qPos){
       ${studentInfo}
       <div class="order-meta">
         <div class="meta-chip"><span>⏱</span> ${o.expected_time} min prep</div>
-        <div class="meta-chip"><span>🛍</span> ${o.items_count} item${o.items_count>1?'s':''}</div>
+        <div class="meta-chip"><span>🛘</span> ${o.items_count} item${o.items_count>1?'s':''}</div>
         <div class="meta-chip"><span>📅</span> ${o.order_placed || 'Just now'}</div>
         <div class="meta-chip"><span>🕐</span> ${waitMins < 1 ? 'Just now' : waitMins + 'm ago'}</div>
         <div class="meta-chip"><span>💰</span> ₹${(o.price||0).toFixed(0)}</div>
@@ -922,6 +927,49 @@ function doLogout(){
   localStorage.removeItem('staff_user');
   window.location.href = 'login.html';
 }
+
+/* ── Live countdown updater (runs every second) ── */
+setInterval(() => {
+  document.querySelectorAll('.timer-value[data-deadline]').forEach(el => {
+    const deadline = parseFloat(el.dataset.deadline);
+    const remaining = deadline - Date.now() / 1000;
+    const absR = Math.abs(remaining);
+    const m = Math.floor(absR / 60);
+    const s = Math.floor(absR % 60);
+    const str = `${m}:${s < 10 ? '0' : ''}${s}`;
+
+    if (remaining <= 0) {
+      // Late
+      el.textContent = `+${str} LATE`;
+      el.style.color = '#ff6b6b';
+      el.style.fontWeight = '800';
+      el.closest('.order-timer').style.borderColor = 'rgba(255,107,107,0.5)';
+      el.closest('.order-timer').style.background  = 'rgba(255,107,107,0.08)';
+      // Show penalty warning inline
+      const warn = el.closest('.order-timer').querySelector('.timer-penalty');
+      if (warn) { warn.style.display = 'block'; warn.textContent = `⚠️ ₹${Math.ceil(absR/60)}+ credits owed to student`; }
+    } else if (remaining <= 60) {
+      el.textContent = str;
+      el.style.color = '#ff6b6b';
+      el.closest('.order-timer').style.borderColor = 'rgba(255,107,107,0.4)';
+      el.closest('.order-timer').style.background  = 'rgba(255,107,107,0.06)';
+      const warn = el.closest('.order-timer').querySelector('.timer-penalty');
+      if (warn) warn.style.display = 'none';
+    } else if (remaining <= 180) {
+      el.textContent = str;
+      el.style.color = '#ffb347';
+      el.closest('.order-timer').style.borderColor = 'rgba(255,179,71,0.4)';
+      el.closest('.order-timer').style.background  = 'rgba(255,179,71,0.06)';
+      const warn = el.closest('.order-timer').querySelector('.timer-penalty');
+      if (warn) warn.style.display = 'none';
+    } else {
+      el.textContent = str;
+      el.style.color = '#4fffb0';
+      el.closest('.order-timer').style.borderColor = 'rgba(79,255,176,0.25)';
+      el.closest('.order-timer').style.background  = 'rgba(79,255,176,0.06)';
+    }
+  });
+}, 1000);
 
 /* ── Auto-refresh every 10s ── */
 loadOrders();

@@ -1285,6 +1285,22 @@ document.querySelectorAll('.canteen-card').forEach(card=>{
     btns.innerHTML = `
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
         ${trackOrderBtn}
+        <button onclick="openOrdersModal()" style="
+          display:flex;align-items:center;gap:6px;
+          padding:8px 16px;
+          background:rgba(201,124,255,0.1);
+          border:0.5px solid rgba(201,124,255,0.3);
+          color:#c97cff;
+          font-family:'Space Grotesk',sans-serif;
+          font-size:12px;font-weight:700;
+          border-radius:9999px;
+          cursor:pointer;
+          transition:all 0.25s;
+          white-space:nowrap;
+        " onmouseover="this.style.background='rgba(201,124,255,0.2)'" onmouseout="this.style.background='rgba(201,124,255,0.1)'">
+          <span style="font-size:14px;">📋</span>
+          <span>Recent Orders</span>
+        </button>
         <div style="
           display:flex;align-items:center;gap:8px;
           padding:8px 16px;
@@ -1300,7 +1316,7 @@ document.querySelectorAll('.canteen-card').forEach(card=>{
           <span style="background:linear-gradient(90deg,#ff9f4a,#ffe393);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
             ${firstName}
           </span>
-          <span id="creditsDisplay" style="margin-left:8px;color:#ffd60a;font-weight:800;">💳 0</span>
+          <span id="creditsDisplay" style="margin-left:4px;color:#ffd60a;font-weight:800;">💳 ₹0</span>
         </div>
         <button onclick="logout()" style="
           padding:8px 18px;
@@ -1557,149 +1573,153 @@ async function loadCredits(){
     });
     if(!res.ok) throw new Error('Failed to load credits');
     const data = await res.json();
-    const creditsDisplay = document.getElementById('creditsDisplay');
-    if(creditsDisplay) creditsDisplay.textContent = `💳 ₹${data.credits || 0}`;
-    document.getElementById('modalCreditsValue').textContent = data.credits || 0;
+    // Update every credits display badge on the page
+    document.querySelectorAll('#creditsDisplay').forEach(el => {
+      el.textContent = `💳 ₹${data.credits || 0}`;
+    });
+    const mc = document.getElementById('modalCreditsValue');
+    if (mc) mc.textContent = data.credits || 0;
   } catch(e) {
     console.error('Credits error:', e);
   }
-  
+}
+
+/* ── ORDERS MODAL ── */
+const _orderStore = new Map(); // safe item store — avoids JSON-in-onclick escaping bugs
+
+function openOrdersModal() {
+  let modal = document.getElementById('ordersOnlyModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'ordersOnlyModal';
+    modal.style.cssText = `
+      display:none; position:fixed; inset:0;
+      background:rgba(0,0,0,0.78); z-index:10001;
+      align-items:center; justify-content:center; padding:20px;
+    `;
+    modal.innerHTML = `
+      <div style="
+        background:#13121c; border:1px solid rgba(201,124,255,0.3);
+        border-radius:24px; padding:28px 28px 24px; max-width:520px; width:100%;
+        max-height:82vh; display:flex; flex-direction:column;
+        animation:slideUp 0.3s ease;
+      ">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+          <h2 style="font-size:20px;font-weight:800;color:#e7e4f0;">📋 Recent Orders</h2>
+          <button id="closeOrdersOnlyModal" style="background:none;border:none;color:#9998aa;font-size:26px;cursor:pointer;">✕</button>
+        </div>
+        <div id="ordersOnlyList" style="overflow-y:auto;flex:1;">Loading...</div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => e.target === modal && (modal.style.display = 'none'));
+    modal.querySelector('#closeOrdersOnlyModal').onclick = () => { modal.style.display = 'none'; };
+  }
+  modal.style.display = 'flex';
+  fetchAndRenderOrders();
+}
+
+async function fetchAndRenderOrders() {
+  const listEl = document.getElementById('ordersOnlyList');
+  if (!listEl) return;
+  listEl.textContent = 'Loading...';
   try {
     const token = localStorage.getItem('student_token');
-    console.log('Fetching orders with token:', token ? 'present' : 'missing');
     const res = await fetch(`${API}/student/orders`, {
       headers: { Authorization: `Bearer ${token}` }
     });
-    console.log('Orders response status:', res.status);
-    if(!res.ok) {
-      const errText = await res.text();
-      console.error('Orders error response:', errText);
-      throw new Error(`HTTP ${res.status}: ${errText}`);
-    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const orders = await res.json();
-    console.log('Orders loaded:', orders);
-    
-    const html = orders.map(o => {
-      const items = Array.isArray(o.items) ? o.items : [];
-      const itemsJson = JSON.stringify(items);
+
+    if (!orders.length) {
+      listEl.innerHTML = '<div style="color:#9998aa;text-align:center;padding:24px;">No orders yet</div>';
+      return;
+    }
+
+    // Store items safely in Map
+    orders.forEach(o => _orderStore.set(o.order_id, { items: Array.isArray(o.items) ? o.items : [], price: o.price }));
+
+    const statusColor = { WAITING:'#ffe393', ACCEPTED:'#6bb8ff', PREPARING:'#c97cff', READY:'#4fffb0', COMPLETED:'#9998aa' };
+
+    listEl.innerHTML = orders.map(o => {
+      const sc = statusColor[o.status] || '#9998aa';
       return `
       <div style="
-        background:#1f1e2b;
-        border:0.5px solid rgba(72,71,81,0.4);
-        border-radius:12px;
-        padding:12px;
-        margin-bottom:10px;
-        font-size:12px;
+        background:#1f1e2b; border:0.5px solid rgba(72,71,81,0.4);
+        border-radius:14px; padding:14px; margin-bottom:10px;
       ">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-          <span style="font-weight:700;color:#e7e4f0;">Order #${o.order_id}</span>
-          <button onclick="showOrderDetails(${o.order_id}, '${itemsJson.replace(/'/g, "\\'")}', ${o.price})" style="
-            padding:4px 12px;
-            background:linear-gradient(135deg,rgba(255,159,74,0.2),rgba(255,159,74,0.1));
-            border:0.5px solid rgba(255,159,74,0.4);
-            color:#ff9f4a;
-            font-family:'Manrope',sans-serif;
-            font-size:11px;
-            font-weight:700;
-            border-radius:6px;
-            cursor:pointer;
-            transition:all 0.2s;
-          " onmouseover="this.style.background='linear-gradient(135deg,rgba(255,159,74,0.3),rgba(255,159,74,0.2))'; this.style.boxShadow='0 0 12px rgba(255,159,74,0.2)'" onmouseout="this.style.background='linear-gradient(135deg,rgba(255,159,74,0.2),rgba(255,159,74,0.1))'; this.style.boxShadow='none'">
-            👁️ View Order
-          </button>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-weight:800;color:#e7e4f0;font-size:13px;">Order #${o.order_id}</span>
+          <span style="font-size:10px;font-weight:700;padding:3px 9px;border-radius:9999px;
+                       background:${sc}22;color:${sc};border:0.5px solid ${sc}55;">
+            ${o.status}
+          </span>
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div style="color:#9998aa;">${o.items_count} items • ₹${o.price} total</div>
-          ${o.late_penalty > 0 ? `<div style="color:#fca5a5;font-weight:700;">Fine: ₹${o.late_penalty}</div>` : ''}
-        </div>`;
+        <div style="color:#9998aa;font-size:12px;margin-bottom:10px;">
+          ${o.items_count || 0} items &bull; ₹${o.price || 0}
+          ${o.late_penalty > 0 ? `<span style="color:#4ade80;font-weight:700;"> &bull; +₹${o.late_penalty} credit 🎉</span>` : ''}
+        </div>
+        <button data-oid="${o.order_id}" onclick="showOrderItemsById(${o.order_id})" style="
+          padding:7px 16px; background:rgba(255,159,74,0.15);
+          border:0.5px solid rgba(255,159,74,0.4); color:#ff9f4a;
+          font-family:'Manrope',sans-serif; font-size:11px; font-weight:700;
+          border-radius:9999px; cursor:pointer; transition:all 0.2s;
+        " onmouseover="this.style.background='rgba(255,159,74,0.28)'" onmouseout="this.style.background='rgba(255,159,74,0.15)'">
+          👁️ View Order
+        </button>
+      </div>`;
     }).join('');
-    
-    document.getElementById('ordersListModal').innerHTML = html || '<div style="color:#9998aa;text-align:center;padding:16px;">No orders yet</div>';
   } catch(e) {
-    console.error('Orders error:', e);
-    document.getElementById('ordersListModal').innerHTML = `<div style="color:#fca5a5;">Error: ${e.message}</div>`;
+    console.error('Orders fetch error:', e);
+    if (listEl) listEl.innerHTML = `<div style="color:#fca5a5;">Error loading orders: ${e.message}</div>`;
   }
 }
 
-function showOrderDetails(orderId, itemsJson, totalPrice) {
-  try {
-    const items = JSON.parse(itemsJson);
-    
-    const modal = document.createElement('div');
-    modal.id = 'orderDetailsModal';
-    modal.style.cssText = `
-      position:fixed;
-      inset:0;
-      background:rgba(0,0,0,0.8);
-      z-index:10001;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:20px;
-      animation:fadeIn 0.3s ease;
-    `;
-    
-    modal.innerHTML = `
-      <div style="
-        background:#13121c;
-        border:1px solid rgba(255,159,74,0.3);
-        border-radius:24px;
-        padding:32px;
-        max-width:450px;
-        width:100%;
-        animation:slideUp 0.3s ease;
-      ">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
-          <h2 style="font-size:22px;font-weight:800;color:#e7e4f0;">🧾 Order #${orderId}</h2>
-          <button onclick="this.closest('div').parentElement.remove()" style="
-            background:none;
-            border:none;
-            color:#9998aa;
-            font-size:28px;
-            cursor:pointer;
-          ">✕</button>
-        </div>
-        
-        <div style="border-bottom:1px solid rgba(72,71,81,0.4);margin-bottom:16px;padding-bottom:16px;">
-          ${items.map(item => `
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding:10px 0;">
-              <div>
-                <div style="color:#e7e4f0;font-weight:700;font-size:13px;">${item.name}</div>
-                <div style="color:#9998aa;font-size:11px;margin-top:2px;">Qty: <span style="color:#ff9f4a;font-weight:700;">x${item.qty || 1}</span></div>
-              </div>
-              <div style="color:#ffe393;font-weight:800;font-size:14px;">₹${item.price * (item.qty || 1)}</div>
-            </div>
-          `).join('')}
-        </div>
-        
-        <div style="background:rgba(255,159,74,0.08);border:1px solid rgba(255,159,74,0.2);border-radius:14px;padding:16px;text-align:right;">
-          <div style="color:#9998aa;font-size:12px;margin-bottom:6px;">TOTAL AMOUNT</div>
-          <div style="font-size:28px;font-weight:900;background:linear-gradient(90deg,#ff9f4a,#ffe393);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
-            ₹${totalPrice}
-          </div>
-        </div>
-        
-        <style>
-          @keyframes fadeIn {
-            from { opacity:0 }
-            to { opacity:1 }
-          }
-          @keyframes slideUp {
-            from { opacity:0;transform:translateY(24px) }
-            to { opacity:1;transform:translateY(0) }
-          }
-        </style>
+function showOrderItemsById(orderId) {
+  const data = _orderStore.get(orderId);
+  if (!data) { alert('Order data not available, please reload.'); return; }
+  const items = data.items;
+
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `
+    position:fixed; inset:0; background:rgba(0,0,0,0.88);
+    z-index:10002; display:flex; align-items:center; justify-content:center;
+    padding:20px; animation:fadeIn 0.2s ease;
+  `;
+  overlay.innerHTML = `
+    <div style="
+      background:#13121c; border:1px solid rgba(255,159,74,0.3);
+      border-radius:24px; padding:28px; max-width:420px; width:100%;
+      animation:slideUp 0.3s ease;
+    ">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <h3 style="font-size:18px;font-weight:800;color:#e7e4f0;">🧾 Order #${orderId}</h3>
+        <button class="closeOD" style="background:none;border:none;color:#9998aa;font-size:26px;cursor:pointer;">✕</button>
       </div>
-    `;
-    
-    document.body.appendChild(modal);
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) modal.remove();
-    });
-  } catch(e) {
-    console.error('Error showing order details:', e);
-  }
+      ${items.length ? items.map(item => `
+        <div style="display:flex;justify-content:space-between;padding:10px 0;
+                     border-bottom:1px solid rgba(72,71,81,0.3);">
+          <div>
+            <div style="color:#e7e4f0;font-weight:700;font-size:13px;">${item.name}</div>
+            <div style="color:#9998aa;font-size:11px;">Qty: <span style="color:#ff9f4a;font-weight:700;">x${item.qty || 1}</span></div>
+          </div>
+          <div style="color:#ffe393;font-weight:800;font-size:14px;">₹${(item.price || 0) * (item.qty || 1)}</div>
+        </div>
+      `).join('') : '<div style="color:#9998aa;text-align:center;padding:16px;">No item details available</div>'}
+      <div style="margin-top:16px;text-align:right;">
+        <div style="color:#9998aa;font-size:11px;margin-bottom:4px;">TOTAL AMOUNT</div>
+        <div style="font-size:26px;font-weight:900;background:linear-gradient(90deg,#ff9f4a,#ffe393);
+                     -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
+          ₹${data.price}
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => e.target === overlay && overlay.remove());
+  overlay.querySelector('.closeOD').onclick = () => overlay.remove();
 }
+
 
 // Load credits on page load
 window.addEventListener('load', async () => {

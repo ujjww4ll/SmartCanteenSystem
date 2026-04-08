@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt, get_jwt
 from werkzeug.security import generate_password_hash, check_password_hash
-import time, json, os
+import time, json, os, math
 
 app = Flask(__name__)
 
@@ -651,9 +651,9 @@ def update_order_status(oid):
         base_time = order.get("accepted_time") or order["created_time"]
         expected_completion = base_time + (order["expected_time"] * 60)
         if now > expected_completion:
-            late_mins = int((now - expected_completion) / 60)
-            late_penalty = late_mins * 1  # ₹1 per minute
-            # Credit the student
+            late_secs    = now - expected_completion
+            late_penalty = math.ceil(late_secs / 60)  # ceil: 30s late = ₹1
+            # Credit the student immediately
             cur.execute(f"UPDATE users SET credits = credits + {ph} WHERE id = {ph}",
                        (late_penalty, order["student_id"]))
     
@@ -707,13 +707,13 @@ def set_status(oid, next_status, prep_time=None):
     late_penalty = 0
     
     if next_status == "COMPLETED":
-        # Use accepted_time as base (that's when the prep timer started)
+        # Base = accepted_time (when prep timer started)
         base_time = order.get("accepted_time") or order["created_time"]
         expected_completion = base_time + (order["expected_time"] * 60)
         if now > expected_completion:
-            late_mins = int((now - expected_completion) / 60)
-            late_penalty = late_mins * 1  # ₹1 per minute
-            # Credit the student
+            late_secs   = now - expected_completion
+            late_penalty = math.ceil(late_secs / 60)  # ceil: 30s late = ₹1
+            # Credit the student immediately
             cur.execute(f"UPDATE users SET credits = credits + {ph} WHERE id = {ph}",
                        (late_penalty, order["student_id"]))
     
