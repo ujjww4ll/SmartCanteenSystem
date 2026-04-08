@@ -77,6 +77,12 @@
       min-height: 100vh;
       overflow-x: hidden;
       cursor: none;
+      padding-top: 72px;
+    }
+    @media (max-width: 700px) {
+      body {
+        padding-top: 96px;
+      }
     }
 
     /* ── Custom cursor ─────────────────────────────────────── */
@@ -135,6 +141,7 @@
       -webkit-backdrop-filter: blur(24px);
       border-bottom: 0.5px solid rgba(72,71,81,0.3);
       transition: background 0.3s ease;
+      gap: 20px;
     }
     nav.scrolled { background: rgba(13,13,22,0.95); }
 
@@ -278,14 +285,58 @@
     }
 
     @media (max-width: 900px) {
+      nav {
+        padding: 0 24px;
+      }
       nav > div:nth-child(2) {
-        max-width: 280px !important;
-        margin: 0 16px !important;
+        max-width: 250px !important;
+        margin: 0 !important;
+      }
+      #navSearchInput {
+        font-size: 12px !important;
+        padding: 8px 12px !important;
       }
     }
     @media (max-width: 700px) {
+      nav {
+        padding: 0 12px;
+        height: 80px;
+        flex-wrap: wrap;
+        align-content: flex-start;
+        padding-top: 8px;
+      }
+      .nav-logo {
+        font-size: 18px;
+        order: 1;
+      }
+      .nav-logo-badge {
+        width: 32px;
+        height: 32px;
+        font-size: 16px;
+      }
+      .hamburger {
+        order: 2;
+      }
       nav > div:nth-child(2) {
-        display: none;
+        order: 3;
+        width: 100%;
+        max-width: 100% !important;
+        margin: 0 !important;
+        margin-top: 4px;
+      }
+      .nav-links {
+        display: none !important;
+      }
+      .nav-btns {
+        display: none !important;
+      }
+      #navSearchInput {
+        font-size: 12px !important;
+        padding: 8px 12px !important;
+        width: 100% !important;
+      }
+      nav {
+        padding-bottom: 8px;
       }
     }
 
