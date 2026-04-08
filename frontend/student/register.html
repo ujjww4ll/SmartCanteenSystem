@@ -5,6 +5,32 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Register — B.U Eats</title>
   <script src="../common/config.js"></script>
+  
+  <!-- Background Audio - Persistent Across Pages -->
+  <audio id="bgMusic" autoplay loop style="display:none;">
+    <source src="../assets/background-music.mp3" type="audio/mpeg">
+  </audio>
+  
+  <script>
+    // Restore audio state from previous page
+    const bgAudio = document.getElementById('bgMusic');
+    const audioState = sessionStorage.getItem('audioState');
+    const audioTime = parseFloat(sessionStorage.getItem('audioTime')) || 0;
+    
+    bgAudio.volume = 0.2;
+    bgAudio.currentTime = audioTime;
+    
+    if(audioState === 'playing') {
+      bgAudio.play().catch(err => console.log('Autoplay blocked'));
+    }
+    
+    // Save audio state when leaving page
+    window.addEventListener('beforeunload', () => {
+      sessionStorage.setItem('audioState', bgAudio.paused ? 'paused' : 'playing');
+      sessionStorage.setItem('audioTime', bgAudio.currentTime);
+    });
+  </script>
+  
   <meta name="description" content="Create your B.U Eats account and start ordering food from campus canteens." />
   <link rel="stylesheet" href="../common/style.css" />
   <style>
@@ -667,6 +693,32 @@ function startTimer(seconds){
 
 document.addEventListener('keydown',e=>{ if(e.key==='Enter') register(); });
 
+// Music toggle button
+let isMusicPlaying = true;
+const MAX_VOLUME = 0.2;
+
+function toggleMusic() {
+  const audio = document.getElementById('bgMusic');
+  const icon = document.getElementById('musicIcon');
+  
+  if(audio.paused) {
+    audio.volume = MAX_VOLUME;
+    audio.play().catch(e => console.log('Play failed:', e));
+    icon.textContent = '🔊';
+    isMusicPlaying = true;
+  } else {
+    audio.pause();
+    icon.textContent = '🔇';
+    isMusicPlaying = false;
+  }
+}
+
 </script>
+
+<!-- Music Player Toggle Button -->
+<button onclick="toggleMusic()" style="position: fixed; bottom: 20px; right: 20px; z-index: 100; background: rgba(255, 159, 74, 0.9); border: none; color: white; font-size: 20px; cursor: pointer; padding: 12px 16px; border-radius: 50px; backdrop-filter: blur(10px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: all 0.3s ease;">
+  <span id="musicIcon">🔊</span>
+</button>
+
 </body>
 </html>
