@@ -1447,26 +1447,22 @@ window.addEventListener('load', async () => {
   Your browser does not support the audio element.
 </audio>
 
+<script>
+// Immediately unmute and play audio as page loads
+const audio = document.getElementById('bgMusic');
+if(audio) {
+  audio.volume = 0.4; // Medium volume (0-1 scale, 0.4 = 40%)
+  audio.muted = false; // Unmute immediately
+  audio.play().catch(e => console.log('Autoplay error:', e));
+}
+</script>
+
 <!-- Music Player Toggle Button -->
 <button onclick="toggleMusic()" style="position: fixed; bottom: 20px; right: 20px; z-index: 100; background: rgba(255, 159, 74, 0.9); border: none; color: white; font-size: 20px; cursor: pointer; padding: 12px 16px; border-radius: 50px; backdrop-filter: blur(10px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: all 0.3s ease;">
   <span id="musicIcon">🔊</span>
 </button>
 
 <script>
-// Background music player with medium volume
-const audio = document.getElementById('bgMusic');
-if(audio) {
-  audio.volume = 0.4; // Medium volume (0-1 scale, 0.4 = 40%)
-}
-
-// Play music on first user interaction (click anywhere on page)
-document.addEventListener('click', () => {
-  if(audio && audio.paused) {
-    audio.muted = false;
-    audio.play().catch(e => console.log('Play failed:', e));
-  }
-}, { once: true });
-
 let isMusicPlaying = true;
 
 function toggleMusic() {
@@ -1474,7 +1470,6 @@ function toggleMusic() {
   const icon = document.getElementById('musicIcon');
   
   if(audio.paused) {
-    audio.muted = false;
     audio.play().catch(e => console.log('Play failed:', e));
     icon.textContent = '🔊';
     isMusicPlaying = true;
