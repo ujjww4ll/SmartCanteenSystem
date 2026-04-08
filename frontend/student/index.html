@@ -14,7 +14,7 @@
   <script>
     // Start music immediately in HEAD before page renders
     const bgAudio = document.getElementById('bgMusic');
-    bgAudio.volume = 0.05; // Set to 5% (very quiet for mobile compatibility)
+    bgAudio.volume = 0.2; // Set to 20% (louder than 5%)
     bgAudio.play().catch(err => {
       // Autoplay blocked - will play on first interaction
       console.log('Autoplay blocked by browser');
@@ -1717,14 +1717,14 @@ window.addEventListener('load', async () => {
 
 <script>
 let isMusicPlaying = true;
-const MAX_VOLUME = 0.05; // Max volume capped at 5% - very quiet for mobile
+const MAX_VOLUME = 0.2; // Max volume capped at 20%
 
 function toggleMusic() {
   const audio = document.getElementById('bgMusic');
   const icon = document.getElementById('musicIcon');
   
   if(audio.paused) {
-    audio.volume = MAX_VOLUME; // Set to max allowed 5%
+    audio.volume = MAX_VOLUME; // Set to max allowed 20%
     audio.play().catch(e => console.log('Play failed:', e));
     icon.textContent = '🔊';
     isMusicPlaying = true;
@@ -1739,7 +1739,7 @@ function toggleMusic() {
 document.addEventListener('click', () => {
   const audio = document.getElementById('bgMusic');
   if(audio && audio.paused) {
-    audio.volume = Math.min(audio.volume, MAX_VOLUME); // Enforce max volume 5%
+    audio.volume = Math.min(audio.volume, MAX_VOLUME); // Enforce max volume 20%
     audio.play().catch(e => console.log('Play on click failed:', e));
   }
 }, { once: true });
@@ -1748,7 +1748,7 @@ document.addEventListener('click', () => {
 document.addEventListener('touchstart', () => {
   const audio = document.getElementById('bgMusic');
   if(audio && audio.paused) {
-    audio.volume = Math.min(audio.volume, MAX_VOLUME); // Enforce max volume 5%
+    audio.volume = Math.min(audio.volume, MAX_VOLUME); // Enforce max volume 20%
     audio.play().catch(e => console.log('Play on touch failed:', e));
   }
 }, { once: true });
