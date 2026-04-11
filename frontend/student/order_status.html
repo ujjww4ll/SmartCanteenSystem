@@ -406,8 +406,7 @@
     <div class="countdown-area" id="countdownArea">
       <div class="countdown-label">⏱ Preparation Time Remaining</div>
       <div class="countdown-digits" id="countdownDigits">--:--</div>
-      <div class="countdown-sub" id="countdownSub">Staff promised this time when accepting your order</div>
-    </div>
+      <div class="countdown-sub" id="countdownSub">Staff promised this time when accepting your order</div>      <div id=\"countdownFinalAmount\" style=\"margin-top:15px;padding-top:15px;border-top:1px solid rgba(255,255,255,0.1);font-size:13px;\"></div>    </div>
 
     <!-- Alert banners -->
     <div class="alert-banner alert-warn"   id="alertWarn"></div>
@@ -433,6 +432,7 @@ const STEPS = ["WAITING","ACCEPTED","PREPARING","READY","COMPLETED"];
 
 let lastStatus  = null;
 let countdownInt = null;  // setInterval handle for countdown
+let currentOrder = null;  // Store current order for countdown display
 
 function formatTime(unix_timestamp) {
   if (!unix_timestamp) return "—";
@@ -443,6 +443,9 @@ function formatTime(unix_timestamp) {
 }
 
 function updateUI(o) {
+  // Store order globally for countdown function to access
+  currentOrder = o;
+  
   // Check if order is late
   let displayStatus = o.status;
   if (o.status === "PREPARING" || o.status === "READY") {
@@ -570,19 +573,17 @@ function updateUI(o) {
   alertDanger.style.display   = "none";
   alertCredits.style.display  = "none";
 
-  console.log(`[Timer Debug] Status: ${o.status}, accepted_time: ${o.accepted_time}, expected_time: ${o.expected_time}`);
-  
+  // Timer ONLY on PREPARING - NEVER on ACCEPTED
   if (o.status === "PREPARING" && o.accepted_time && o.expected_time) {
-    // Timer ONLY shows on PREPARING (not ACCEPTED)
-    // Deadline = when staff accepted + prep time they promised
-    console.log(`[Timer] ✅ PREPARING status confirmed - starting countdown`);
+    console.log(`✅ PREPARING - showing countdown + final amount`);
     const deadline = o.accepted_time + (o.expected_time * 60);
     countdownArea.style.display = "block";
     startCountdown(deadline);
-  } else if (o.status === "ACCEPTED" && o.accepted_time && o.expected_time) {
-    // Explicit check: if status is ACCEPTED, DO NOT show timer
-    console.log(`[Timer] ⚠️  ACCEPTED status - HIDING timer (will show on PREPARING)`);
+  } else {
+    // Make absolutely sure countdown is hidden for all other statuses
     countdownArea.style.display = "none";
+    if (countdownInt) { clearInterval(countdownInt); countdownInt = null; }
+  }
 
   } else if (o.status === "COMPLETED" && o.late_penalty > 0) {
     // Show credits earned
@@ -613,6 +614,22 @@ function startCountdown(deadline) {
   const subText   = document.getElementById("countdownSub");
   const alertWarn = document.getElementById("alertWarn");
   const alertDang = document.getElementById("alertDanger");
+  const finalAmtDiv = document.getElementById("countdownFinalAmount");
+
+  // Display final amount in countdown card
+  if (currentOrder && finalAmtDiv) {
+    let finalAmountHTML = `<div style="color:#9998aa;margin-bottom:6px;">Order Amount: <strong>₹${currentOrder.price}</strong></div>`;
+    finalAmountHTML += `<div style="color:#22c55e;font-size:12px;">`;
+    if (currentOrder.late_penalty && currentOrder.late_penalty > 0) {
+      const total = currentOrder.price + currentOrder.late_penalty;
+      finalAmountHTML += `💳 Late Penalty: <strong>+₹${currentOrder.late_penalty}</strong><br>`;
+      finalAmountHTML += `📊 Total Credits: ₹${total}`;
+    } else {
+      finalAmountHTML += `✅ On time so far`;
+    }
+    finalAmountHTML += `</div>`;
+    finalAmtDiv.innerHTML = finalAmountHTML;
+  }
 
   function tick() {
     const remaining = deadline - Date.now() / 1000;
