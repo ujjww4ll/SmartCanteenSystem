@@ -646,6 +646,7 @@ function startCountdown(deadline) {
       if (finalAmtDiv && currentOrder) {
         const total = currentOrder.price + penalty;
         finalAmtDiv.innerHTML = `<div style=\"color:#ff6b6b;font-size:12px;\">⚠️ Late Penalty: +\u20b9${penalty}+ | 💰 Total: \u20b9${total}+</div>`;
+      }
   } else if (remaining <= 60) {
       // < 1 min — danger
       digits.className = "countdown-digits danger";
@@ -739,3 +740,6 @@ function toggleMusic() {
 
 </body>
 </html>
+
+
+
