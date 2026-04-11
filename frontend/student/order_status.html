@@ -455,8 +455,7 @@ function updateUI(o) {
       if (Date.now() / 1000 > deadline) {
         displayStatus = "LATE";
       }
-    }
-  } else if (o.status === "COMPLETED" && o.late_penalty > 0) {
+    } else if (o.status === "COMPLETED" && o.late_penalty > 0) {
     displayStatus = "LATE";
   }
 
@@ -579,12 +578,6 @@ function updateUI(o) {
     const deadline = o.accepted_time + (o.expected_time * 60);
     countdownArea.style.display = "block";
     startCountdown(deadline);
-  } else {
-    // Make absolutely sure countdown is hidden for all other statuses
-    countdownArea.style.display = "none";
-    if (countdownInt) { clearInterval(countdownInt); countdownInt = null; }
-  }
-
   } else if (o.status === "COMPLETED" && o.late_penalty > 0) {
     // Show credits earned
     alertCredits.style.display = "block";
@@ -653,7 +646,7 @@ function startCountdown(deadline) {
       if (finalAmtDiv && currentOrder) {
         const total = currentOrder.price + penalty;
         finalAmtDiv.innerHTML = `<div style=\"color:#ff6b6b;font-size:12px;\">⚠️ Late Penalty: +\u20b9${penalty}+ | 💰 Total: \u20b9${total}+</div>`;
-      }    } else if (remaining <= 60) {
+  } else if (remaining <= 60) {
       // < 1 min — danger
       digits.className = "countdown-digits danger";
       digits.textContent = timeStr;
