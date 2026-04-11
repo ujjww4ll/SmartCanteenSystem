@@ -648,8 +648,12 @@ function startCountdown(deadline) {
       alertDang.style.display = "block";
       alertDang.innerHTML = `⌛ Order is <strong>${lateMins > 0 ? lateMins + ' min ' : ''}${Math.floor(absR%60)}s</strong> late! ` +
                             `You're earning <strong>\u20b9${penalty}+</strong> in credits automatically!`;
-      alertWarn.style.display = "none";
-    } else if (remaining <= 60) {
+      alertWarn.style.display = "none";      
+      // Show accumulating penalty in countdown card
+      if (finalAmtDiv && currentOrder) {
+        const total = currentOrder.price + penalty;
+        finalAmtDiv.innerHTML = `<div style=\"color:#ff6b6b;font-size:12px;\">⚠️ Late Penalty: +\u20b9${penalty}+ | 💰 Total: \u20b9${total}+</div>`;
+      }    } else if (remaining <= 60) {
       // < 1 min — danger
       digits.className = "countdown-digits danger";
       digits.textContent = timeStr;
