@@ -725,6 +725,7 @@ def set_status(oid, next_status, prep_time=None):
                 # Only calculate penalty if order was actually accepted
                 if raw_at is None:
                     print(f"  ❌ No accepted_time - order may not have been accepted yet")
+                    print(f"     ⚠️  WORKFLOW ISSUE: Must click 'Accept Order' before 'Completed'")
                     late_penalty = 0
                 else:
                     base_time = float(raw_at)
@@ -744,20 +745,33 @@ def set_status(oid, next_status, prep_time=None):
                         print(f"     Will credit ₹{late_penalty} to student {sid}")
                         
                         if sid:
+                            # Update user credits
+                            print(f"     Executing: UPDATE users SET credits = credits + {late_penalty} WHERE id = {sid}")
                             cur.execute(
                                 f"UPDATE users SET credits = credits + {ph} WHERE id = {ph}",
                                 (late_penalty, sid)
                             )
                             print(f"     UPDATE query executed. Rows affected: {cur.rowcount}")
                             
+                            # IMPORTANT: Commit immediately for credits update
+                            conn.commit()
+                            print(f"     ✅ Committed to database")
+                            
                             # Verify the credit was added
-                            cur.execute(f"SELECT credits FROM users WHERE id = {ph}", (sid,))
+                            cur.execute(f"SELECT id, credits FROM users WHERE id = {ph}", (sid,))
                             verify_row = cur.fetchone()
                             if verify_row:
-                                new_credits = float(verify_row[0] if USE_POSTGRES else verify_row["credits"] or 0)
-                                print(f"     Verified: Student now has ₹{new_credits} credits")
+                                if USE_POSTGRES:
+                                    vid, new_credits = verify_row
+                                else:
+                                    result_dict = dict(verify_row)
+                                    vid = result_dict.get("id")
+                                    new_credits = float(result_dict.get("credits") or 0)
+                                print(f"     ✓ Verified: Student {vid} now has ₹{new_credits} credits")
+                            else:
+                                print(f"     ⚠️  Student {sid} not found!")
                         else:
-                            print(f"     ERROR: student_id is None!")
+                            print(f"     ❌ ERROR: student_id is None!")
                             late_penalty = 0
                     else:
                         print(f"  ✓ Order is NOT late (exp_mins={exp_mins}, within time)")
