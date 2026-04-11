@@ -425,7 +425,8 @@ const STATUS_INFO = {
   ACCEPTED:  { emoji:"✅", desc:"The canteen has accepted your order!",                  fill:"25%"  },
   PREPARING: { emoji:"👨‍🍳", desc:"Your food is being freshly prepared right now.",        fill:"50%"  },
   READY:     { emoji:"🔔", desc:"Your order is READY! Go pick it up at the counter.",    fill:"75%"  },
-  COMPLETED: { emoji:"🎉", desc:"Order completed. Enjoy your meal! 😋",                  fill:"100%" }
+  COMPLETED: { emoji:"🎉", desc:"Order completed. Enjoy your meal! 😋",                  fill:"100%" },
+  LATE:      { emoji:"🔴", desc:"Your order is RUNNING LATE! Earning ₹1+ per minute.", fill:"50%"  }
 };
 
 const STEPS = ["WAITING","ACCEPTED","PREPARING","READY","COMPLETED"];
@@ -442,12 +443,26 @@ function formatTime(unix_timestamp) {
 }
 
 function updateUI(o) {
-  const info      = STATUS_INFO[o.status] || STATUS_INFO.WAITING;
+  // Check if order is late
+  let displayStatus = o.status;
+  if (o.status === "PREPARING" || o.status === "READY") {
+    // Check real-time deadline
+    if (o.accepted_time && o.expected_time) {
+      const deadline = o.accepted_time + (o.expected_time * 60);
+      if (Date.now() / 1000 > deadline) {
+        displayStatus = "LATE";
+      }
+    }
+  } else if (o.status === "COMPLETED" && o.late_penalty > 0) {
+    displayStatus = "LATE";
+  }
+
+  const info      = STATUS_INFO[displayStatus] || STATUS_INFO.WAITING;
   const stepIdx   = STEPS.indexOf(o.status);
 
   // Emoji + text
   document.getElementById("statusEmoji").textContent = info.emoji;
-  document.getElementById("status").textContent      = o.status;
+  document.getElementById("status").textContent      = displayStatus;
   document.getElementById("statusDesc").textContent  = info.desc;
   document.getElementById("price").textContent       = "₹" + o.price;
   document.getElementById("expected").textContent    = o.expected_time + " mins";
@@ -553,7 +568,8 @@ function updateUI(o) {
   alertDanger.style.display   = "none";
   alertCredits.style.display  = "none";
 
-  if ((o.status === "ACCEPTED" || o.status === "PREPARING") && o.accepted_time && o.expected_time) {
+  if (o.status === "PREPARING" && o.accepted_time && o.expected_time) {
+    // Timer only shows on PREPARING (not ACCEPTED)
     // Deadline = when staff accepted + prep time they promised
     const deadline = o.accepted_time + (o.expected_time * 60);
     countdownArea.style.display = "block";
