@@ -686,59 +686,135 @@ FLOW = {
 def set_status(oid, next_status, prep_time=None):
     conn, ph = db_conn()
     cur  = conn.cursor()
-    cur.execute(f"SELECT status, created_time, expected_time, student_id, accepted_time FROM orders WHERE order_id = {ph}", (oid,))
-    row = cur.fetchone()
-    if not row:
-        conn.close()
-        return None
-    
-    if USE_POSTGRES:
-        cols = [desc[0] for desc in cur.description]
-        order = dict(zip(cols, row))
-    else:
-        order = dict(row)
-    
-    current = order["status"]
-    if next_status not in FLOW.get(current, []):
-        conn.close()
-        return None
-    
-    now = time.time()
-    late_penalty = 0
-    
-    if next_status == "COMPLETED":
-        # Base = accepted_time (when prep timer started)
-        base_time = order.get("accepted_time") or order["created_time"]
-        expected_completion = base_time + (order["expected_time"] * 60)
-        if now > expected_completion:
-            late_secs   = now - expected_completion
-            late_penalty = math.ceil(late_secs / 60)  # ceil: 30s late = ₹1
-            # Credit the student immediately
-            cur.execute(f"UPDATE users SET credits = credits + {ph} WHERE id = {ph}",
-                       (late_penalty, order["student_id"]))
-    
-    # Update with timestamp
-    if next_status == "ACCEPTED":
-        # If custom prep_time provided (in minutes), update expected_time
-        if prep_time is not None and prep_time > 0:
-            cur.execute(f"UPDATE orders SET status = {ph}, accepted_time = {ph}, expected_time = {ph} WHERE order_id = {ph}", 
-                       (next_status, now, prep_time, oid))
-            print(f"[ORDER] Order {oid} accepted with custom prep time: {prep_time} minutes")
+    try:
+        cur.execute(
+            f"SELECT order_id, status, created_time, expected_time, student_id, accepted_time "
+            f"FROM orders WHERE order_id = {ph}",
+            (oid,)
+        )
+        row = cur.fetchone()
+        if not row:
+            conn.close()
+            return None
+
+        if USE_POSTGRES:
+            cols  = [desc[0] for desc in cur.description]
+            order = dict(zip(cols, row))
         else:
-            cur.execute(f"UPDATE orders SET status = {ph}, accepted_time = {ph} WHERE order_id = {ph}", 
-                       (next_status, now, oid))
-    elif next_status == "READY":
-        cur.execute(f"UPDATE orders SET status = {ph}, ready_time = {ph} WHERE order_id = {ph}", 
-                   (next_status, now, oid))
-    elif next_status == "COMPLETED":
-        cur.execute(f"UPDATE orders SET status = {ph}, completed_time = {ph}, late_penalty = {ph} WHERE order_id = {ph}",
-                   (next_status, now, late_penalty, oid))
-    else:
-        cur.execute(f"UPDATE orders SET status = {ph} WHERE order_id = {ph}", (next_status, oid))
-    
-    conn.commit()
-    conn.close()
-    return {"late_penalty": late_penalty}
+            order = dict(row)
+
+        current = order["status"]
+        if next_status not in FLOW.get(current, []):
+            conn.close()
+            return None
+
+        now          = time.time()
+        late_penalty = 0
+
+        # ── Penalty (isolated – never blocks order completion) ─────────────────
+        if next_status == "COMPLETED":
+            try:
+                raw_at  = order.get("accepted_time")
+                raw_ct  = order.get("created_time")
+                raw_exp = order.get("expected_time")
+                sid     = order.get("student_id")
+
+                print(f"\n[PENALTY DEBUG] Order {oid}:")
+                print(f"  accepted_time={raw_at}, created_time={raw_ct}, expected_time={raw_exp}, student_id={sid}")
+
+                # Only calculate penalty if order was actually accepted
+                if raw_at is None:
+                    print(f"  ❌ No accepted_time - order may not have been accepted yet")
+                    late_penalty = 0
+                else:
+                    base_time = float(raw_at)
+                    exp_mins  = float(raw_exp) if raw_exp is not None else 0.0
+                    expected_completion = base_time + (exp_mins * 60.0)
+
+                    print(f"  base_time={base_time:.0f}, exp_mins={exp_mins}")
+                    print(f"  expected_completion={expected_completion:.0f}, now={now:.0f}")
+                    print(f"  time_diff={(now - expected_completion):.1f}s")
+
+                    if exp_mins > 0 and now > expected_completion:
+                        late_secs = now - expected_completion
+                        late_penalty = math.ceil(late_secs / 60)
+                        
+                        print(f"  ✅ ORDER IS LATE!")
+                        print(f"     Late by {late_secs:.0f} seconds = {late_penalty} minutes")
+                        print(f"     Will credit ₹{late_penalty} to student {sid}")
+                        
+                        if sid:
+                            cur.execute(
+                                f"UPDATE users SET credits = credits + {ph} WHERE id = {ph}",
+                                (late_penalty, sid)
+                            )
+                            print(f"     UPDATE query executed. Rows affected: {cur.rowcount}")
+                            
+                            # Verify the credit was added
+                            cur.execute(f"SELECT credits FROM users WHERE id = {ph}", (sid,))
+                            verify_row = cur.fetchone()
+                            if verify_row:
+                                new_credits = float(verify_row[0] if USE_POSTGRES else verify_row["credits"] or 0)
+                                print(f"     Verified: Student now has ₹{new_credits} credits")
+                        else:
+                            print(f"     ERROR: student_id is None!")
+                            late_penalty = 0
+                    else:
+                        print(f"  ✓ Order is NOT late (exp_mins={exp_mins}, within time)")
+                        late_penalty = 0
+            except Exception as pen_err:
+                import traceback
+                print(f"[PENALTY ERROR] {pen_err}")
+                traceback.print_exc()
+                late_penalty = 0   # don't block order completion
+
+        # ── Status update ──────────────────────────────────────────────────────
+        if next_status == "ACCEPTED":
+            if prep_time is not None and float(prep_time) > 0:
+                cur.execute(
+                    f"UPDATE orders SET status={ph}, accepted_time={ph}, expected_time={ph} "
+                    f"WHERE order_id={ph}",
+                    (next_status, now, float(prep_time), oid)
+                )
+                print(f"[ORDER] {oid} ACCEPTED prep={prep_time}m")
+            else:
+                cur.execute(
+                    f"UPDATE orders SET status={ph}, accepted_time={ph} WHERE order_id={ph}",
+                    (next_status, now, oid)
+                )
+        elif next_status == "READY":
+            cur.execute(
+                f"UPDATE orders SET status={ph}, ready_time={ph} WHERE order_id={ph}",
+                (next_status, now, oid)
+            )
+        elif next_status == "COMPLETED":
+            cur.execute(
+                f"UPDATE orders SET status={ph}, completed_time={ph}, late_penalty={ph} "
+                f"WHERE order_id={ph}",
+                (next_status, now, late_penalty, oid)
+            )
+        else:
+            cur.execute(
+                f"UPDATE orders SET status={ph} WHERE order_id={ph}",
+                (next_status, oid)
+            )
+
+        conn.commit()
+        print(f"[ORDER] {oid} -> {next_status} committed. penalty={late_penalty}")
+        conn.close()
+        return {"late_penalty": late_penalty}
+
+    except Exception as e:
+        import traceback
+        print(f"[ERROR] set_status({oid}, {next_status}): {e}")
+        traceback.print_exc()
+        try:
+            conn.rollback()
+            conn.close()
+        except Exception:
+            pass
+        return None
+
 
 @app.route("/order/accept",    methods=["POST"])
 @jwt_required()
@@ -807,7 +883,63 @@ def test_smtp():
             "details": str(e)
         }), 500
 
-# ── Run locally ───────────────────────────────────────────────────────────────
+
+# ── DEBUG: Check penalty calculation for any order ─────────────────────────────
+@app.route("/debug/order/<oid>", methods=["GET"])
+def debug_order(oid):
+    """No-auth debug endpoint – shows penalty calculation for an order."""
+    try:
+        conn, ph = db_conn()
+        cur = conn.cursor()
+        cur.execute(f"SELECT * FROM orders WHERE order_id = {ph}", (oid,))
+        row = cur.fetchone()
+        if not row:
+            conn.close()
+            return jsonify({"error": "Order not found"}), 404
+
+        order = row_to_dict(row, cur)
+
+        # Get student credits
+        sid = order.get("student_id")
+        student_credits = None
+        if sid:
+            cur.execute(f"SELECT credits FROM users WHERE id = {ph}", (sid,))
+            urow = cur.fetchone()
+            if urow:
+                student_credits = float(urow[0] if USE_POSTGRES else urow["credits"] or 0)
+        conn.close()
+
+        now      = time.time()
+        raw_at   = order.get("accepted_time")
+        raw_ct   = order.get("created_time")
+        raw_exp  = order.get("expected_time")
+
+        base_time = float(raw_at) if raw_at is not None else float(raw_ct or 0)
+        exp_mins  = float(raw_exp) if raw_exp is not None else 0.0
+        deadline  = base_time + (exp_mins * 60.0)
+        diff      = now - deadline
+
+        return jsonify({
+            "order_id":        oid,
+            "status":          order.get("status"),
+            "student_id":      sid,
+            "student_credits": student_credits,
+            "expected_time_mins": exp_mins,
+            "accepted_time":   raw_at,
+            "created_time":    raw_ct,
+            "deadline_unix":   round(deadline, 2),
+            "now_unix":        round(now, 2),
+            "diff_seconds":    round(diff, 1),
+            "is_late":         diff > 0 and exp_mins > 0,
+            "would_credit_rs": math.ceil(diff / 60) if (diff > 0 and exp_mins > 0) else 0,
+            "stored_late_penalty": order.get("late_penalty"),
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
