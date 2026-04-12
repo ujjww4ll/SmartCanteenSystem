@@ -458,9 +458,10 @@ function updateUI(o) {
   let isCurrentlyLate = false;
   
   if (o.status === "PREPARING") {
-    // Check real-time deadline - only show LATE during PREPARING
-    if (o.accepted_time && o.expected_time) {
-      const deadline = o.accepted_time + (o.expected_time * 60);
+    // Check real-time deadline - use preparing_time (when "Start Preparing" was clicked)
+    const timerStart = o.preparing_time || o.accepted_time;
+    if (timerStart && o.expected_time) {
+      const deadline = timerStart + (o.expected_time * 60);
       if (Date.now() / 1000 > deadline) {
         displayStatus = "LATE";
         isCurrentlyLate = true;
@@ -476,10 +477,24 @@ function updateUI(o) {
 
   const stepIdx   = STEPS.indexOf(o.status);
 
+  // Map display statuses to user-friendly names
+  const STATUS_LABELS = {
+    WAITING:        "Waiting for Canteen",
+    ACCEPTED:       "Order Accepted",
+    PREPARING:      "Being Prepared",
+    READY:          "Ready for Pickup!",
+    COMPLETED:      "Order Completed",
+    LATE:           "Running Late!",
+    WAS_LATE:       "Ready! (Was Late)",
+    COMPLETED_LATE: "Completed (Was Late)"
+  };
+
   // Set emoji and desc based on status
   let emoji = "—";
   let desc = "—";
   let fill = "0%";
+  // Always compute info for use in toast and other places
+  const info = STATUS_INFO[o.status] || STATUS_INFO.WAITING;
   
   if (displayStatus === "LATE") {
     emoji = "🔴";
@@ -495,7 +510,6 @@ function updateUI(o) {
     fill = "100%";
   } else {
     // Use default STATUS_INFO
-    const info = STATUS_INFO[o.status] || STATUS_INFO.WAITING;
     emoji = info.emoji;
     desc = info.desc;
     fill = info.fill;
@@ -503,9 +517,7 @@ function updateUI(o) {
 
   // Emoji + text
   document.getElementById("statusEmoji").textContent = emoji;
-  document.getElementById("status").textContent      = displayStatus === "WAS_LATE" ? "Ready! (Was Late)" : 
-                                                       displayStatus === "COMPLETED_LATE" ? "Completed (Was Late)" :
-                                                       displayStatus;
+  document.getElementById("status").textContent      = STATUS_LABELS[displayStatus] || displayStatus;
   document.getElementById("statusDesc").textContent  = desc;
   document.getElementById("price").textContent       = "₹" + o.price;
   document.getElementById("expected").textContent    = o.expected_time + " mins";
@@ -526,8 +538,8 @@ function updateUI(o) {
       timeStr = formatTime(o.created_time);
     } else if (s === "ACCEPTED" && o.accepted_time) {
       timeStr = formatTime(o.accepted_time);
-    } else if (s === "PREPARING" && o.accepted_time) {
-      timeStr = formatTime(o.accepted_time);
+    } else if (s === "PREPARING" && (o.preparing_time || o.accepted_time)) {
+      timeStr = formatTime(o.preparing_time || o.accepted_time);
     } else if (s === "READY" && o.ready_time) {
       timeStr = formatTime(o.ready_time);
     } else if (s === "COMPLETED" && o.completed_time) {
@@ -564,11 +576,10 @@ function updateUI(o) {
       finalAmountHTML += `<div style="margin-bottom:6px;">Order Amount: <strong>₹${o.price}</strong></div>`;
       
       if (o.late_penalty && o.late_penalty > 0) {
-        const finalAmount = o.price + (o.late_penalty || 0);
-        finalAmountHTML += `<div style="color:#ff9f4a;margin-bottom:6px;">💳 Late Penalty (credited): <strong>+₹${o.late_penalty}</strong></div>`;
-        finalAmountHTML += `<div style="border-top:1px solid rgba(34,197,94,0.2);padding-top:6px;color:#22c55e;"><strong>Total Credits Earned: ₹${finalAmount}</strong></div>`;
+        finalAmountHTML += `<div style="color:#ff9f4a;margin-bottom:6px;">💳 Late Penalty Credits Earned: <strong>+₹${o.late_penalty}</strong></div>`;
+        finalAmountHTML += `<div style="border-top:1px solid rgba(34,197,94,0.2);padding-top:6px;color:#ff6b6b;"><strong>Net Canteen Revenue: ₹${Math.max(0, o.price - o.late_penalty).toFixed(0)}</strong></div>`;
       } else {
-        finalAmountHTML += `<div style="color:#22c55e;">✅ Order completed on time!</div>`;
+        finalAmountHTML += `<div style="color:#22c55e;">✅ Order completed on time! No penalty.</div>`;
       }
       finalAmountHTML += `</div>`;
       if (amountEl) amountEl.innerHTML = finalAmountHTML;
@@ -591,17 +602,6 @@ function updateUI(o) {
   } else {
     card.style.borderColor = "";
     card.style.boxShadow   = "";
-  }
-
-  // Show late penalty notification on completed
-  const alertCredits = document.getElementById("alertCredits");
-  if (alertCredits) {
-    if (o.status === "COMPLETED" && o.late_penalty && o.late_penalty > 0) {
-      alertCredits.style.display = "block";
-      alertCredits.innerHTML = `✅ Order completed! <strong>₹${o.late_penalty} late penalty credits</strong> have been added to your account automatically.`;
-    } else {
-      alertCredits.style.display = "none";
-    }
   }
 
   // ── Countdown + Alerts ────────────────────────────────────────────────
@@ -629,16 +629,23 @@ function updateUI(o) {
     console.log(`🟢 ACCEPTED - Showing FROZEN timer (NOT counting)`);
     countdownArea.style.display = "block";
     displayFrozenTimer(o.expected_time);
-  } else if (o.status === "PREPARING" && o.accepted_time && o.expected_time) {
-    // NOW start the countdown - only on PREPARING
-    console.log(`🟣 PREPARING - STARTING countdown timer`);
-    const deadline = o.accepted_time + (o.expected_time * 60);
-    countdownArea.style.display = "block";
-    startCountdown(deadline);
+  } else if (o.status === "PREPARING" && o.expected_time) {
+    // NOW start the countdown - timer begins from when "Start Preparing" was clicked
+    const timerStart = o.preparing_time || o.accepted_time;
+    if (timerStart) {
+      console.log(`🟣 PREPARING - STARTING countdown timer from preparing_time`);
+      const deadline = timerStart + (o.expected_time * 60);
+      countdownArea.style.display = "block";
+      startCountdown(deadline);
+    }
   } else if (o.status === "COMPLETED" && o.late_penalty > 0) {
     // Show credits earned
     alertCredits.style.display = "block";
     alertCredits.innerHTML     = `🎉 You earned <strong>₹${o.late_penalty}</strong> credits because your order was delivered late! Check your wallet ★`;
+
+  } else if (o.status === "COMPLETED") {
+    alertCredits.style.display = "block";
+    alertCredits.innerHTML     = `✅ Order completed on time! No penalty.`;
 
   } else if (o.status === "READY") {
     // Order is ready — clear everything (no penalty if ready on time)

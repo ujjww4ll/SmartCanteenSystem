@@ -83,19 +83,20 @@ def init_db():
         )""")
         cur.execute("""
         CREATE TABLE IF NOT EXISTS orders(
-            order_id      BIGINT PRIMARY KEY,
-            canteen_id    INTEGER,
-            student_id    INTEGER,
-            items         TEXT,
-            items_count   INTEGER,
-            price         DOUBLE PRECISION,
-            expected_time INTEGER,
-            status        TEXT,
-            created_time  DOUBLE PRECISION,
-            accepted_time DOUBLE PRECISION,
-            ready_time    DOUBLE PRECISION,
+            order_id       BIGINT PRIMARY KEY,
+            canteen_id     INTEGER,
+            student_id     INTEGER,
+            items          TEXT,
+            items_count    INTEGER,
+            price          DOUBLE PRECISION,
+            expected_time  INTEGER,
+            status         TEXT,
+            created_time   DOUBLE PRECISION,
+            accepted_time  DOUBLE PRECISION,
+            preparing_time DOUBLE PRECISION,
+            ready_time     DOUBLE PRECISION,
             completed_time DOUBLE PRECISION,
-            late_penalty  DOUBLE PRECISION DEFAULT 0
+            late_penalty   DOUBLE PRECISION DEFAULT 0
         )""")
         try:
             cur.execute("INSERT INTO order_counter(id, next_order_id) VALUES (1, 1001)")
@@ -109,6 +110,10 @@ def init_db():
         try:
             cur.execute("ALTER TABLE orders ADD COLUMN completed_time DOUBLE PRECISION")
             cur.execute("ALTER TABLE orders ADD COLUMN late_penalty DOUBLE PRECISION DEFAULT 0")
+        except Exception:
+            pass
+        try:
+            cur.execute("ALTER TABLE orders ADD COLUMN preparing_time DOUBLE PRECISION")
         except Exception:
             pass
     else:
@@ -149,26 +154,28 @@ def init_db():
         )""")
         cur.execute("""
         CREATE TABLE IF NOT EXISTS orders(
-            order_id      INTEGER PRIMARY KEY,
-            canteen_id    INTEGER,
-            student_id    INTEGER,
-            items         TEXT,
-            items_count   INTEGER,
-            price         REAL,
-            expected_time INTEGER,
-            status        TEXT,
-            created_time  REAL,
-            accepted_time REAL,
-            ready_time    REAL,
+            order_id       INTEGER PRIMARY KEY,
+            canteen_id     INTEGER,
+            student_id     INTEGER,
+            items          TEXT,
+            items_count    INTEGER,
+            price          REAL,
+            expected_time  INTEGER,
+            status         TEXT,
+            created_time   REAL,
+            accepted_time  REAL,
+            preparing_time REAL,
+            ready_time     REAL,
             completed_time REAL,
-            late_penalty  REAL DEFAULT 0
+            late_penalty   REAL DEFAULT 0
         )""")
         try:
             cur.execute("INSERT INTO order_counter(id, next_order_id) VALUES (1, 1001)")
         except Exception:
             pass
         # Add missing columns
-        for col, typ in [("completed_time","REAL"),("late_penalty","REAL DEFAULT 0")]:
+        for col, typ in [("completed_time","REAL"),("late_penalty","REAL DEFAULT 0"),
+                         ("preparing_time","REAL")]:
             try:
                 cur.execute(f"ALTER TABLE orders ADD COLUMN {col} {typ}")
             except Exception:
@@ -476,11 +483,11 @@ def create_order():
     total_time  = sum(i["time"]  for i in items)
 
     cur.execute(
-        f"INSERT INTO orders VALUES ({ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph})",
+        f"INSERT INTO orders VALUES ({ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph})",
         (oid, d["canteen_id"], int(user_id),
          json.dumps(items), len(items),
          total_price, total_time,
-         "WAITING", time.time(), None, None, None, 0)
+         "WAITING", time.time(), None, None, None, None, 0)
     )
     conn.commit()
     conn.close()
@@ -543,15 +550,16 @@ def order_status(oid):
 
     r = row_to_dict(row, cur)
     return jsonify({
-        "status":        r["status"],
-        "items":         json.loads(r["items"]),
-        "price":         r["price"],
-        "expected_time": r["expected_time"],
-        "created_time":  r["created_time"],
-        "accepted_time": r["accepted_time"],
-        "ready_time":    r["ready_time"],
-        "completed_time": r["completed_time"],
-        "late_penalty":  r["late_penalty"]
+        "status":          r["status"],
+        "items":           json.loads(r["items"]),
+        "price":           r["price"],
+        "expected_time":   r["expected_time"],
+        "created_time":    r["created_time"],
+        "accepted_time":   r["accepted_time"],
+        "preparing_time":  r["preparing_time"],
+        "ready_time":      r["ready_time"],
+        "completed_time":  r["completed_time"],
+        "late_penalty":    r["late_penalty"]
     })
 
 # ── GET STUDENT CREDITS ───────────────────────────────────────────────────────
@@ -647,8 +655,8 @@ def update_order_status(oid):
     
     if next_status == "COMPLETED":
         order["completed_time"] = now
-        # Use accepted_time as base (that's when prep timer started)
-        base_time = order.get("accepted_time") or order["created_time"]
+        # Use preparing_time as base (when preparation actually started); fall back to accepted_time
+        base_time = order.get("preparing_time") or order.get("accepted_time") or order["created_time"]
         expected_completion = base_time + (order["expected_time"] * 60)
         if now > expected_completion:
             late_secs    = now - expected_completion
@@ -657,17 +665,21 @@ def update_order_status(oid):
             cur.execute(f"UPDATE users SET credits = credits + {ph} WHERE id = {ph}",
                        (late_penalty, order["student_id"]))
     
-    # Update order status
-    status_col = "accepted_time" if next_status == "ACCEPTED" else \
-                 "ready_time" if next_status == "READY" else \
-                 "completed_time" if next_status == "COMPLETED" else None
-    
-    if status_col:
-        cur.execute(f"UPDATE orders SET status = {ph}, {status_col} = {ph}, late_penalty = {ph} WHERE order_id = {ph}",
+    # Update order status; track preparing_time when transitioning to PREPARING
+    if next_status == "PREPARING":
+        cur.execute(f"UPDATE orders SET status = {ph}, preparing_time = {ph}, late_penalty = {ph} WHERE order_id = {ph}",
                    (next_status, now, late_penalty, oid))
     else:
-        cur.execute(f"UPDATE orders SET status = {ph}, late_penalty = {ph} WHERE order_id = {ph}",
-                   (next_status, late_penalty, oid))
+        status_col = "accepted_time" if next_status == "ACCEPTED" else \
+                     "ready_time" if next_status == "READY" else \
+                     "completed_time" if next_status == "COMPLETED" else None
+        
+        if status_col:
+            cur.execute(f"UPDATE orders SET status = {ph}, {status_col} = {ph}, late_penalty = {ph} WHERE order_id = {ph}",
+                       (next_status, now, late_penalty, oid))
+        else:
+            cur.execute(f"UPDATE orders SET status = {ph}, late_penalty = {ph} WHERE order_id = {ph}",
+                       (next_status, late_penalty, oid))
     
     conn.commit()
     conn.close()
@@ -688,7 +700,8 @@ def set_status(oid, next_status, prep_time=None):
     cur  = conn.cursor()
     try:
         cur.execute(
-            f"SELECT order_id, status, created_time, expected_time, student_id, accepted_time "
+            f"SELECT order_id, status, created_time, expected_time, student_id, "
+            f"accepted_time, preparing_time "
             f"FROM orders WHERE order_id = {ph}",
             (oid,)
         )
@@ -714,21 +727,27 @@ def set_status(oid, next_status, prep_time=None):
         # ── Penalty (isolated – never blocks order completion) ─────────────────
         if next_status == "COMPLETED":
             try:
+                raw_pt  = order.get("preparing_time")   # When "Start Preparing" was clicked
                 raw_at  = order.get("accepted_time")
                 raw_ct  = order.get("created_time")
                 raw_exp = order.get("expected_time")
                 sid     = order.get("student_id")
 
                 print(f"\n[PENALTY DEBUG] Order {oid}:")
-                print(f"  accepted_time={raw_at}, created_time={raw_ct}, expected_time={raw_exp}, student_id={sid}")
+                print(f"  preparing_time={raw_pt}, accepted_time={raw_at}, expected_time={raw_exp}, student_id={sid}")
 
-                # Only calculate penalty if order was actually accepted
-                if raw_at is None:
-                    print(f"  ❌ No accepted_time - order may not have been accepted yet")
-                    print(f"     ⚠️  WORKFLOW ISSUE: Must click 'Accept Order' before 'Completed'")
+                # Use preparing_time as base (when prep actually started); fall back to accepted_time
+                if raw_pt is not None:
+                    base_time = float(raw_pt)
+                elif raw_at is not None:
+                    base_time = float(raw_at)
+                else:
+                    base_time = None
+
+                if base_time is None:
+                    print(f"  ❌ No preparing_time or accepted_time - order may not have been started yet")
                     late_penalty = 0
                 else:
-                    base_time = float(raw_at)
                     exp_mins  = float(raw_exp) if raw_exp is not None else 0.0
                     expected_completion = base_time + (exp_mins * 60.0)
 
@@ -796,6 +815,13 @@ def set_status(oid, next_status, prep_time=None):
                     f"UPDATE orders SET status={ph}, accepted_time={ph} WHERE order_id={ph}",
                     (next_status, now, oid)
                 )
+        elif next_status == "PREPARING":
+            # Record the exact moment preparation actually starts (for accurate timer + penalty)
+            cur.execute(
+                f"UPDATE orders SET status={ph}, preparing_time={ph} WHERE order_id={ph}",
+                (next_status, now, oid)
+            )
+            print(f"[ORDER] {oid} PREPARING started at {now:.0f}")
         elif next_status == "READY":
             cur.execute(
                 f"UPDATE orders SET status={ph}, ready_time={ph} WHERE order_id={ph}",
@@ -837,25 +863,33 @@ def accept():
     prep_time = request.json.get("prep_time")  # Custom prep time in minutes
     
     result = set_status(order_id, "ACCEPTED", prep_time)
-    return jsonify({"ok": 1} if result is not None else {"error": "Failed"})
+    if result is None:
+        return jsonify({"error": "Failed to accept order. Order may not exist or is not in WAITING state."}), 400
+    return jsonify({"ok": 1})
 
 @app.route("/order/preparing", methods=["POST"])
 @jwt_required()
 def preparing():
     result = set_status(request.json["order_id"], "PREPARING")
-    return jsonify({"ok": 1} if result is not None else {"error": "Failed"})
+    if result is None:
+        return jsonify({"error": "Failed to start preparing. Order may not exist or is not in ACCEPTED state."}), 400
+    return jsonify({"ok": 1})
 
 @app.route("/order/ready",     methods=["POST"])
 @jwt_required()
 def ready():
     result = set_status(request.json["order_id"], "READY")
-    return jsonify({"ok": 1} if result is not None else {"error": "Failed"})
+    if result is None:
+        return jsonify({"error": "Failed to mark order ready. Order may not exist or is not in PREPARING state."}), 400
+    return jsonify({"ok": 1})
 
 @app.route("/order/complete",  methods=["POST"])
 @jwt_required()
 def complete():
     result = set_status(request.json["order_id"], "COMPLETED")
-    return jsonify({"ok": result.get("late_penalty", 0)} if result else {"error": "Failed"})
+    if result is None:
+        return jsonify({"error": "Failed to complete order. Order may not exist or is not in READY state."}), 400
+    return jsonify({"ok": 1, "late_penalty": result.get("late_penalty", 0)})
 
 @app.route("/order/cancel",  methods=["POST"])
 @jwt_required()
