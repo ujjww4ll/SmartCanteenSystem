@@ -856,6 +856,12 @@ function orderCard(o, qPos){
           : `<div class="meta-chip"><span>💰</span> ₹${(o.price||0).toFixed(0)}</div>`
         }
       </div>
+      ${['PREPARING', 'ACCEPTED'].includes(o.status) && o.price ? `
+      <div class="final-amount-display" data-order-id="${o.order_id}" data-original-price="${o.price}" data-deadline="${o.status === 'PREPARING' && o.accepted_time ? o.accepted_time + (o.expected_time * 60) : ''}" style="display:flex;align-items:center;gap:12px;padding:12px;background:rgba(79,255,176,0.08);border:0.5px solid rgba(79,255,176,0.2);border-radius:10px;margin-top:10px;">
+        <span style="font-size:11px;font-weight:700;color:#9998aa;">💳 Final Amount</span>
+        <span class="final-amount-value" style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:800;color:#4fffb0;">₹${(o.price||0).toFixed(0)}</span>
+        <span class="final-amount-penalty" style="font-size:10px;color:#9998aa;margin-left:auto;"></span>
+      </div>` : ''}
       ${timerDisplay}
     </div>
     <div class="order-actions">${actionBtn}</div>
@@ -1079,6 +1085,49 @@ setInterval(() => {
       el.style.color = '#4fffb0';
       el.closest('.order-timer').style.borderColor = 'rgba(79,255,176,0.25)';
       el.closest('.order-timer').style.background  = 'rgba(79,255,176,0.06)';
+    }
+  });
+
+  // Update Final Amount display for PREPARING orders
+  document.querySelectorAll('.final-amount-display[data-deadline]').forEach(el => {
+    const deadline = parseFloat(el.dataset.deadline);
+    const originalPrice = parseFloat(el.dataset['originalPrice']);
+    const remaining = deadline - Date.now() / 1000;
+    
+    if (deadline && remaining <= 0) {
+      // Order is late - show penalty
+      const penalty = Math.ceil(Math.abs(remaining) / 60);
+      const finalAmount = Math.max(0, originalPrice - penalty);
+      const valueEl = el.querySelector('.final-amount-value');
+      const penaltyEl = el.querySelector('.final-amount-penalty');
+      
+      if (valueEl) {
+        valueEl.textContent = `₹${finalAmount.toFixed(0)}`;
+        valueEl.style.color = '#ff6b6b';
+      }
+      if (penaltyEl) {
+        penaltyEl.textContent = `−₹${penalty}`;
+        penaltyEl.style.color = '#ff6b6b';
+      }
+      
+      // Change background to red warning
+      el.style.background = 'rgba(255,107,107,0.08)';
+      el.style.borderColor = 'rgba(255,107,107,0.25)';
+    } else if (remaining > 0) {
+      // Still on time or within grace period
+      const valueEl = el.querySelector('.final-amount-value');
+      const penaltyEl = el.querySelector('.final-amount-penalty');
+      
+      if (valueEl) {
+        valueEl.textContent = `₹${originalPrice.toFixed(0)}`;
+        valueEl.style.color = '#4fffb0';
+      }
+      if (penaltyEl) {
+        penaltyEl.textContent = '';
+      }
+      
+      el.style.background = 'rgba(79,255,176,0.08)';
+      el.style.borderColor = 'rgba(79,255,176,0.2)';
     }
   });
 }, 1000);
