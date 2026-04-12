@@ -805,8 +805,8 @@ function orderCard(o, qPos){
   
   // Live countdown ONLY for PREPARING orders (not ACCEPTED!)
   let timerDisplay = '';
-  if (o.status === 'PREPARING' && o.accepted_time && o.expected_time) {
-    const deadline = o.accepted_time + (o.expected_time * 60);
+  if (o.status === 'PREPARING' && o.preparing_time && o.expected_time) {
+    const deadline = o.preparing_time + (o.expected_time * 60);
     timerDisplay = `
       <div class="order-timer" data-deadline="${deadline}">
         <div>
@@ -857,7 +857,7 @@ function orderCard(o, qPos){
         }
       </div>
       ${['PREPARING', 'ACCEPTED'].includes(o.status) && o.price ? `
-      <div class="final-amount-display" data-order-id="${o.order_id}" data-original-price="${o.price}" data-deadline="${o.status === 'PREPARING' && o.accepted_time ? o.accepted_time + (o.expected_time * 60) : ''}" style="display:flex;align-items:center;gap:12px;padding:12px;background:rgba(79,255,176,0.08);border:0.5px solid rgba(79,255,176,0.2);border-radius:10px;margin-top:10px;">
+      <div class="final-amount-display" data-order-id="${o.order_id}" data-original-price="${o.price}" data-deadline="${o.status === 'PREPARING' && o.preparing_time ? o.preparing_time + (o.expected_time * 60) : ''}" style="display:flex;align-items:center;gap:12px;padding:12px;background:rgba(79,255,176,0.08);border:0.5px solid rgba(79,255,176,0.2);border-radius:10px;margin-top:10px;">
         <span style="font-size:11px;font-weight:700;color:#9998aa;">💳 Final Amount</span>
         <span class="final-amount-value" style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:800;color:#4fffb0;">₹${(o.price||0).toFixed(0)}</span>
         <span class="final-amount-penalty" style="font-size:10px;color:#9998aa;margin-left:auto;"></span>

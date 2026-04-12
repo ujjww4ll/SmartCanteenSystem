@@ -281,6 +281,8 @@
       display: none;
       text-align: center;
       line-height: 1.5;
+      position: relative;
+      z-index: 20;
     }
     .alert-warn {
       background: rgba(251,146,60,0.14);
@@ -459,8 +461,10 @@ function updateUI(o) {
   
   if (o.status === "PREPARING") {
     // Check real-time deadline - only show LATE during PREPARING
-    if (o.accepted_time && o.expected_time) {
-      const deadline = o.accepted_time + (o.expected_time * 60);
+    // Use preparing_time as the timer base (when "Start Preparing" was clicked)
+    const timerBase = o.preparing_time || o.accepted_time;
+    if (timerBase && o.expected_time) {
+      const deadline = timerBase + (o.expected_time * 60);
       if (Date.now() / 1000 > deadline) {
         displayStatus = "LATE";
         isCurrentlyLate = true;
@@ -526,8 +530,8 @@ function updateUI(o) {
       timeStr = formatTime(o.created_time);
     } else if (s === "ACCEPTED" && o.accepted_time) {
       timeStr = formatTime(o.accepted_time);
-    } else if (s === "PREPARING" && o.accepted_time) {
-      timeStr = formatTime(o.accepted_time);
+    } else if (s === "PREPARING" && (o.preparing_time || o.accepted_time)) {
+      timeStr = formatTime(o.preparing_time || o.accepted_time);
     } else if (s === "READY" && o.ready_time) {
       timeStr = formatTime(o.ready_time);
     } else if (s === "COMPLETED" && o.completed_time) {
@@ -564,9 +568,8 @@ function updateUI(o) {
       finalAmountHTML += `<div style="margin-bottom:6px;">Order Amount: <strong>₹${o.price}</strong></div>`;
       
       if (o.late_penalty && o.late_penalty > 0) {
-        const finalAmount = o.price + (o.late_penalty || 0);
         finalAmountHTML += `<div style="color:#ff9f4a;margin-bottom:6px;">💳 Late Penalty (credited): <strong>+₹${o.late_penalty}</strong></div>`;
-        finalAmountHTML += `<div style="border-top:1px solid rgba(34,197,94,0.2);padding-top:6px;color:#22c55e;"><strong>Total Credits Earned: ₹${finalAmount}</strong></div>`;
+        finalAmountHTML += `<div style="border-top:1px solid rgba(34,197,94,0.2);padding-top:6px;color:#22c55e;"><strong>Total Credits Earned: ₹${o.late_penalty}</strong></div>`;
       } else {
         finalAmountHTML += `<div style="color:#22c55e;">✅ Order completed on time!</div>`;
       }
@@ -629,10 +632,12 @@ function updateUI(o) {
     console.log(`🟢 ACCEPTED - Showing FROZEN timer (NOT counting)`);
     countdownArea.style.display = "block";
     displayFrozenTimer(o.expected_time);
-  } else if (o.status === "PREPARING" && o.accepted_time && o.expected_time) {
+  } else if (o.status === "PREPARING" && (o.preparing_time || o.accepted_time) && o.expected_time) {
     // NOW start the countdown - only on PREPARING
+    // Use preparing_time as the base (when "Start Preparing" was clicked)
     console.log(`🟣 PREPARING - STARTING countdown timer`);
-    const deadline = o.accepted_time + (o.expected_time * 60);
+    const timerBase = o.preparing_time || o.accepted_time;
+    const deadline = timerBase + (o.expected_time * 60);
     countdownArea.style.display = "block";
     startCountdown(deadline);
   } else if (o.status === "COMPLETED" && o.late_penalty > 0) {
@@ -705,9 +710,8 @@ function startCountdown(deadline) {
     let finalAmountHTML = `<div style="color:#9998aa;margin-bottom:6px;">Order Amount: <strong>₹${currentOrder.price}</strong></div>`;
     finalAmountHTML += `<div style="color:#22c55e;font-size:12px;">`;
     if (currentOrder.late_penalty && currentOrder.late_penalty > 0) {
-      const total = currentOrder.price + currentOrder.late_penalty;
       finalAmountHTML += `💳 Late Penalty: <strong>+₹${currentOrder.late_penalty}</strong><br>`;
-      finalAmountHTML += `📊 Total Credits: ₹${total}`;
+      finalAmountHTML += `📊 Total Credits: ₹${currentOrder.late_penalty}`;
     } else {
       finalAmountHTML += `✅ On time so far`;
     }

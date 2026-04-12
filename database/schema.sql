@@ -3,5 +3,6 @@ CREATE TABLE orders (
     status TEXT,
     expected_time INT,
     actual_time INT,
-    final_price INT
+    final_price INT,
+    preparing_time REAL
 );
