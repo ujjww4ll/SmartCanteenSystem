@@ -497,9 +497,9 @@ function updateUI(o) {
   });
 
   // Items
-  if (o.items) {
-    try {
-      document.getElementById("items").innerHTML = o.items.map(i =>
+  // Items rendering with fallback
+  const itemsEl = document.getElementById("items");
+  if (o.items && Array.isArray(o.items) && o.items.length > 0) {
         `<div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;">
            <span>• ${i.name}</span>
            <span style="color:var(--amber);font-weight:700;">₹${i.price}</span>
@@ -696,7 +696,7 @@ function refreshNavCredits(penalty, status) {
 
 // ── Polling ───────────────────────────────────────────────────────────────────
 // Override pollStudent to use updateUI
-const orderId = localStorage.getItem("student_order");
+const orderId = localStorage.getItem("student_order"); console.log("Order ID:", orderId);
 if (orderId) {
   const poll = () => {
     fetch(API + "/order/status/" + orderId, { headers: authHeaders("student") })
@@ -740,6 +740,7 @@ function toggleMusic() {
 
 </body>
 </html>
+
 
 
 
