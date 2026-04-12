@@ -857,6 +857,44 @@ def complete():
     result = set_status(request.json["order_id"], "COMPLETED")
     return jsonify({"ok": result.get("late_penalty", 0)} if result else {"error": "Failed"})
 
+@app.route("/order/cancel",  methods=["POST"])
+@jwt_required()
+def cancel_order():
+    """Cancel an order with a reason and notes."""
+    try:
+        order_id = request.json.get("order_id")
+        reason = request.json.get("reason", "unknown")
+        notes = request.json.get("notes", "")
+        
+        conn, ph = db_conn()
+        cur = conn.cursor()
+        
+        # Check if order exists
+        cur.execute(f"SELECT status FROM orders WHERE order_id = {ph}", (order_id,))
+        row = cur.fetchone()
+        if not row:
+            conn.close()
+            return jsonify({"error": "Order not found"}), 404
+        
+        current_status = row[0]
+        
+        # Can only cancel WAITING or ACCEPTED orders
+        if current_status not in ["WAITING", "ACCEPTED"]:
+            conn.close()
+            return jsonify({"error": "Can only cancel orders in WAITING or ACCEPTED status"}), 400
+        
+        # Delete the order (or mark as CANCELLED if you want to keep history)
+        cur.execute(f"DELETE FROM orders WHERE order_id = {ph}", (order_id,))
+        conn.commit()
+        conn.close()
+        
+        print(f"Order #{order_id} cancelled. Reason: {reason}, Notes: {notes}")
+        return jsonify({"ok": 1, "message": "Order cancelled successfully"})
+    
+    except Exception as e:
+        print(f"Error cancelling order: {e}")
+        return jsonify({"error": str(e)}), 500
+
 # ── TEST SMTP CONNECTION (debug OTP issues) ────────────────────────────────────
 @app.route("/test-smtp", methods=["GET"])
 def test_smtp():
