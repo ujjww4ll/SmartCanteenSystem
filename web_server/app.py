@@ -532,27 +532,34 @@ def canteen_orders():
 @app.route("/order/status/<int:oid>", methods=["GET"])
 @jwt_required()
 def order_status(oid):
-    conn, ph = db_conn()
-    cur  = conn.cursor()
-    cur.execute(f"SELECT * FROM orders WHERE order_id = {ph}", (oid,))
-    row = cur.fetchone()
-    conn.close()
+    try:
+        conn, ph = db_conn()
+        cur  = conn.cursor()
+        cur.execute(f"SELECT * FROM orders WHERE order_id = {ph}", (oid,))
+        row = cur.fetchone()
+        conn.close()
 
-    if not row:
-        return jsonify({"error": "Order not found"}), 404
+        if not row:
+            print(f"Order {oid} not found in database")
+            return jsonify({"error": "Order not found"}), 404
 
-    r = row_to_dict(row, cur)
-    return jsonify({
-        "status":        r["status"],
-        "items":         json.loads(r["items"]),
-        "price":         r["price"],
-        "expected_time": r["expected_time"],
-        "created_time":  r["created_time"],
-        "accepted_time": r["accepted_time"],
-        "ready_time":    r["ready_time"],
-        "completed_time": r["completed_time"],
-        "late_penalty":  r["late_penalty"]
-    })
+        r = row_to_dict(row, cur)
+        response = {
+            "status":        r.get("status"),
+            "items":         json.loads(r.get("items", "[]")),
+            "price":         float(r.get("price", 0)),
+            "expected_time": int(r.get("expected_time", 0)),
+            "created_time":  float(r.get("created_time", 0)),
+            "accepted_time": float(r.get("accepted_time") or 0),
+            "ready_time":    float(r.get("ready_time") or 0),
+            "completed_time": float(r.get("completed_time") or 0),
+            "late_penalty":  int(r.get("late_penalty", 0))
+        }
+        print(f"Order {oid} status: {response.get('status')}")
+        return jsonify(response)
+    except Exception as e:
+        print(f"Error in /order/status/{oid}: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 # ── GET STUDENT CREDITS ───────────────────────────────────────────────────────
 @app.route("/student/credits", methods=["GET"])
