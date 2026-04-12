@@ -457,7 +457,8 @@ function updateUI(o) {
       if (Date.now() / 1000 > deadline) {
         displayStatus = "LATE";
       }
-    } else if (o.status === "COMPLETED" && o.late_penalty > 0) {
+    }
+  } else if (o.status === "COMPLETED" && o.late_penalty > 0) {
     displayStatus = "LATE";
   }
 
@@ -772,4 +773,4 @@ function toggleMusic() {
 </button>
 
 </body>
-</html>}
+</html>
