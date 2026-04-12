@@ -501,17 +501,30 @@ function updateUI(o) {
     fill = info.fill;
   }
 
+  // Safe DOM updates with null checks
+  const setTextContent = (id, text) => {
+    const el = document.getElementById(id);
+    if (!el) console.warn(`Element #${id} not found`);
+    else el.textContent = text;
+  };
+  
+  const setStyle = (id, prop, value) => {
+    const el = document.getElementById(id);
+    if (!el) console.warn(`Element #${id} not found`);
+    else el.style[prop] = value;
+  };
+
   // Emoji + text
-  document.getElementById("statusEmoji").textContent = emoji;
-  document.getElementById("status").textContent      = displayStatus === "WAS_LATE" ? "Ready! (Was Late)" : 
-                                                       displayStatus === "COMPLETED_LATE" ? "Completed (Was Late)" :
-                                                       displayStatus;
-  document.getElementById("statusDesc").textContent  = desc;
-  document.getElementById("price").textContent       = "₹" + o.price;
-  document.getElementById("expected").textContent    = o.expected_time + " mins";
+  setTextContent("statusEmoji", emoji);
+  setTextContent("status", displayStatus === "WAS_LATE" ? "Ready! (Was Late)" : 
+                           displayStatus === "COMPLETED_LATE" ? "Completed (Was Late)" :
+                           displayStatus);
+  setTextContent("statusDesc", desc);
+  setTextContent("price", "₹" + o.price);
+  setTextContent("expected", o.expected_time + " mins");
 
   // Progress fill
-  document.getElementById("progressFill").style.width = fill;
+  setStyle("progressFill", "width", fill);
 
   // Step highlights & timestamps
   STEPS.forEach((s, i) => {
@@ -664,6 +677,11 @@ function displayFrozenTimer(expectedTimeMinutes) {
   const subText = document.getElementById("countdownSub");
   const finalAmtDiv = document.getElementById("countdownFinalAmount");
   
+  if (!digits || !subText) {
+    console.warn("Countdown elements not found");
+    return;
+  }
+  
   // Show full duration frozen
   const m = expectedTimeMinutes;
   const s = 0;
@@ -700,6 +718,13 @@ function startCountdown(deadline) {
   const alertDang = document.getElementById("alertDanger");
   const finalAmtDiv = document.getElementById("countdownFinalAmount");
 
+  // Guard: if required elements don't exist, abort
+  if (!digits || !subText) {
+    console.warn("Countdown elements missing - aborting startCountdown");
+    isCountdownRunning = false;
+    return;
+  }
+
   // Display final amount in countdown card
   if (currentOrder && finalAmtDiv) {
     let finalAmountHTML = `<div style="color:#9998aa;margin-bottom:6px;">Order Amount: <strong>₹${currentOrder.price}</strong></div>`;
@@ -716,6 +741,7 @@ function startCountdown(deadline) {
   }
 
   function tick() {
+    if (!digits || !subText) return; // Extra safety check
     const remaining = deadline - Date.now() / 1000;
     const absR      = Math.abs(remaining);
     const m = Math.floor(absR / 60);
@@ -729,10 +755,12 @@ function startCountdown(deadline) {
       digits.className = "countdown-digits late";
       digits.textContent = "+" + timeStr;
       subText.textContent = "\u26a0\ufe0f Order is running LATE — credits are accumulating!";
-      alertDang.style.display = "block";
-      alertDang.innerHTML = `⌛ Order is <strong>${lateMins > 0 ? lateMins + ' min ' : ''}${Math.floor(absR%60)}s</strong> late! ` +
-                            `You're earning <strong>\u20b9${penalty}+</strong> in credits automatically!`;
-      alertWarn.style.display = "none";      
+      if (alertDang) {
+        alertDang.style.display = "block";
+        alertDang.innerHTML = `⌛ Order is <strong>${lateMins > 0 ? lateMins + ' min ' : ''}${Math.floor(absR%60)}s</strong> late! ` +
+                              `You're earning <strong>\u20b9${penalty}+</strong> in credits automatically!`;
+      }
+      if (alertWarn) alertWarn.style.display = "none";
       // Show accumulating penalty in countdown card
       if (finalAmtDiv && currentOrder) {
         const total = currentOrder.price + penalty;
@@ -743,18 +771,22 @@ function startCountdown(deadline) {
       digits.className = "countdown-digits danger";
       digits.textContent = timeStr;
       subText.textContent = "\uD83D\uDEA8 Almost there! Order due any second.";
-      alertDang.style.display = "block";
-      alertDang.innerHTML = `\uD83D\uDEA8 Under <strong>1 minute</strong> left! If late, you'll earn \u20b91+ in credits.`;
-      alertWarn.style.display = "none";
+      if (alertDang) {
+        alertDang.style.display = "block";
+        alertDang.innerHTML = `\uD83D\uDEA8 Under <strong>1 minute</strong> left! If late, you'll earn \u20b91+ in credits.`;
+      }
+      if (alertWarn) alertWarn.style.display = "none";
     } else if (remaining <= 180) {
       // < 3 min — warning
       digits.className = "countdown-digits warning";
       digits.textContent = timeStr;
       subText.textContent = "\u26a1 Order should be ready very soon!";
-      alertWarn.style.display = "block";
-      alertWarn.innerHTML = `\u23f0 Only <strong>${Math.ceil(remaining/60)} minute${Math.ceil(remaining/60)>1?'s':''}</strong> left ` +
-                            `— keep an eye out!`;
-      alertDang.style.display = "none";
+      if (alertWarn) {
+        alertWarn.style.display = "block";
+        alertWarn.innerHTML = `\u23f0 Only <strong>${Math.ceil(remaining/60)} minute${Math.ceil(remaining/60)>1?'s':''}</strong> left ` +
+                              `— keep an eye out!`;
+      }
+      if (alertDang) alertDang.style.display = "none";
     } else {
       // Plenty of time
       digits.className = "countdown-digits";
