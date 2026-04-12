@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: smart-canteen-api
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn web_server.app:app --bind 0.0.0.0:$PORT --workers 1 --threads 2"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: DATABASE_URL
+        fromDatabase:
+          name: smart-canteen-db
+          property: connectionString
+      - key: FLASK_ENV
+        value: production
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        value: "*"
+databases:
+  - name: smart-canteen-db
+    databaseName: smart_canteen
+    user: postgres
+    region: singapore
