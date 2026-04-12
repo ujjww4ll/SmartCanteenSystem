@@ -842,23 +842,28 @@ function orderCard(o, qPos){
       <div class="order-items">${itemPills}</div>
       ${studentInfo}
       <div class="order-meta">
-        <div class="meta-chip"><span>⏱</span> Expected: ${o.expected_time} min</div>
+        <div class="meta-chip"><span>⏱</span> Expected: ${o.expected_time}:00 min</div>
         <div class="meta-chip"><span>🛘</span> ${o.items_count} item${o.items_count>1?'s':''}</div>
         <div class="meta-chip"><span>📅</span> ${o.order_placed || 'Just now'}</div>
         <div class="meta-chip"><span>🕐</span> ${waitMins < 1 ? 'Just now' : waitMins + 'm ago'}</div>
         ${o.accepted_time && o.expected_time ? `
-        <div class="meta-chip"><span>⏳</span> Total: ${Math.ceil((o.expected_time) / 1)} min</div>
+        <div class="meta-chip"><span>⏳</span> Total: ${Math.ceil((o.expected_time) / 1)}:00 min</div>
         ` : ''}
-        ${o.late_penalty > 0 && o.status === 'COMPLETED'
-          ? `<div class="meta-chip" style="flex-direction:column;gap:3px;align-items:flex-start;">
-               <span style="color:#9998aa;font-size:10px;">Order Total</span>
-               <span style="color:#ffe393;font-weight:800;">💰 ₹${(o.price||0).toFixed(0)}</span>
-               <span style="color:#ff6b6b;font-size:10px;font-weight:700;">💳 −₹${o.late_penalty} credited to student</span>
-               <span style="color:#4fffb0;font-weight:800;font-size:13px;">Final: ₹${((o.price||0) - o.late_penalty).toFixed(0)}</span>
-             </div>`
-          : `<div class="meta-chip"><span>💰</span> ₹${(o.price||0).toFixed(0)}</div>`
-        }
       </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;">
+        <div style="background:rgba(255,159,74,0.08);border:0.5px solid rgba(255,159,74,0.25);border-radius:10px;padding:12px;text-align:center;">
+          <div style="font-size:10px;font-weight:700;color:#9998aa;letter-spacing:0.5px;text-transform:uppercase;">Original Price</div>
+          <div style="font-size:18px;font-weight:800;color:#ffe393;margin-top:4px;">₹${(o.price||0).toFixed(0)}</div>
+        </div>
+        <div style="background:${o.late_penalty > 0 ? 'rgba(255,107,107,0.08)' : 'rgba(79,255,176,0.08)'};border:0.5px solid ${o.late_penalty > 0 ? 'rgba(255,107,107,0.25)' : 'rgba(79,255,176,0.25)'};border-radius:10px;padding:12px;text-align:center;">
+          <div style="font-size:10px;font-weight:700;color:#9998aa;letter-spacing:0.5px;text-transform:uppercase;">Final Amount</div>
+          <div style="font-size:18px;font-weight:800;color:${o.late_penalty > 0 ? '#ff6b6b' : '#4fffb0'};margin-top:4px;">₹${((o.price||0) - (o.late_penalty||0)).toFixed(0)}</div>
+          ${o.late_penalty > 0 ? `<div style="font-size:9px;color:#ff6b6b;margin-top:3px;">-₹${o.late_penalty} penalty</div>` : '<div style="font-size:9px;color:#4fffb0;margin-top:3px;">On time ✓</div>'}
+        </div>
+      </div>
+      ${o.late_penalty > 0 && o.status === 'COMPLETED' ? `<div class="meta-chip" style="flex-direction:column;gap:3px;align-items:flex-start;margin-top:10px;width:100%;background:rgba(255,107,107,0.08);border:0.5px solid rgba(255,107,107,0.2);">
+               <span style="color:#ff6b6b;font-size:10px;font-weight:700;">💳 Credits Applied to Student: ₹${o.late_penalty}</span>
+             </div>` : ''}
       ${['PREPARING', 'ACCEPTED'].includes(o.status) && o.price ? `
       <div class="final-amount-display" data-order-id="${o.order_id}" data-original-price="${o.price}" data-deadline="${o.status === 'PREPARING' && o.accepted_time ? o.accepted_time + (o.expected_time * 60) : ''}" style="display:flex;align-items:center;gap:12px;padding:12px;background:rgba(79,255,176,0.08);border:0.5px solid rgba(79,255,176,0.2);border-radius:10px;margin-top:10px;">
         <span style="font-size:11px;font-weight:700;color:#9998aa;">💳 Final Amount</span>
