@@ -700,15 +700,41 @@ const orderId = localStorage.getItem("student_order"); console.log("Order ID:", 
 if (orderId) {
   const poll = () => {
     fetch(API + "/order/status/" + orderId, { headers: authHeaders("student") })
-    .then(r => r.json())
-    .then(o => { if (o.status) updateUI(o); })
-    .catch(() => {});
+    .then(r => {
+      if (!r.ok) throw new Error("Order not found: " + r.status);
+      return r.json();
+    })
+    .then(o => { 
+      if (o.status) {
+        updateUI(o);
+      } else {
+        console.error("Invalid order response:", o);
+      }
+    })
+    .catch(e => {
+      console.error("Fetch error:", e);
+      document.getElementById("statusCard").innerHTML = `
+        <div style="text-align:center;padding:40px 20px;">
+          <div style="font-size:60px;margin-bottom:20px;">❌</div>
+          <h2>Error Loading Order</h2>
+          <p style="color:#999;margin-bottom:10px;">Failed to fetch order status</p>
+          <p style="color:#666;font-size:13px;margin-bottom:30px;">Trying...</p>
+        </div>
+      `;
+    });
   };
   poll();
   // Auto-refresh every 2 seconds to detect status changes in real-time
   setInterval(poll, 2000);
 } else {
-  document.getElementById("status").textContent = "No active order found.";
+  document.getElementById("statusCard").innerHTML = `
+    <div style="text-align:center;padding:40px 20px;">
+      <div style="font-size:60px;margin-bottom:20px;">📭</div>
+      <h2>No Active Order</h2>
+      <p style="color:#999;margin-bottom:30px;">You don't have an active order yet. Create one to get started!</p>
+      <a href="menu.html" style="display:inline-block;padding:12px 30px;background:#ff9f4a;color:white;text-decoration:none;border-radius:8px;font-weight:bold;">Go to Menu</a>
+    </div>
+  `;
 }
 
 // Music toggle button
