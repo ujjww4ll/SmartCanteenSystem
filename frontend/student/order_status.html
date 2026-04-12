@@ -569,7 +569,7 @@ function updateUI(o) {
       
       if (o.late_penalty && o.late_penalty > 0) {
         finalAmountHTML += `<div style="color:#ff9f4a;margin-bottom:6px;">💳 Late Penalty (credited): <strong>+₹${o.late_penalty}</strong></div>`;
-        finalAmountHTML += `<div style="border-top:1px solid rgba(34,197,94,0.2);padding-top:6px;color:#22c55e;"><strong>Total Credits Earned: ₹${o.late_penalty}</strong></div>`;
+        finalAmountHTML += `<div style="border-top:1px solid rgba(34,197,94,0.2);padding-top:6px;color:#22c55e;"><strong>Late Penalty Credit: ₹${o.late_penalty}</strong></div>`;
       } else {
         finalAmountHTML += `<div style="color:#22c55e;">✅ Order completed on time!</div>`;
       }
@@ -711,7 +711,7 @@ function startCountdown(deadline) {
     finalAmountHTML += `<div style="color:#22c55e;font-size:12px;">`;
     if (currentOrder.late_penalty && currentOrder.late_penalty > 0) {
       finalAmountHTML += `💳 Late Penalty: <strong>+₹${currentOrder.late_penalty}</strong><br>`;
-      finalAmountHTML += `📊 Total Credits: ₹${currentOrder.late_penalty}`;
+      finalAmountHTML += `📊 Late Penalty Credit: ₹${currentOrder.late_penalty}`;
     } else {
       finalAmountHTML += `✅ On time so far`;
     }
