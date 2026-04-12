@@ -419,6 +419,11 @@
     .btn-prepare:hover  { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(201,124,255,0.5); }
     .btn-ready    { background: linear-gradient(135deg,#4fffb0,#6bb8ff); color: #001a12; box-shadow: 0 4px 16px rgba(79,255,176,0.3); }
     .btn-ready:hover    { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(79,255,176,0.5); }
+    .btn-complete { background: #4fffb0; color: #001a12; box-shadow: 0 4px 16px rgba(79,255,176,0.3); }
+    .btn-complete:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(79,255,176,0.5); }
+    .btn-cancel   { background: rgba(255,107,107,0.15); color: #ff6b6b; border: 0.5px solid rgba(255,107,107,0.35); }
+    .btn-cancel:hover   { background: rgba(255,107,107,0.25); border-color: #ff6b6b; transform: translateY(-2px); box-shadow: 0 4px 16px rgba(255,107,107,0.2); }
+    .btn-ready:hover    { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(79,255,176,0.5); }
     .btn-complete { background: rgba(153,152,170,0.12); color: var(--muted); border: 0.5px solid var(--outline); }
     .btn-complete:hover { background: rgba(153,152,170,0.2); }
     .btn-done-tag { background: rgba(79,255,176,0.08); color: var(--green); border: 0.5px solid rgba(79,255,176,0.2); font-size: 11px; padding: 6px; text-align:center; border-radius: 8px; }
@@ -667,6 +672,35 @@
   </div>
 </div>
 
+<!-- Cancel Order Modal -->
+<div class="modal" id="cancelOrderModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      Cancel Order #<span id="cancelOrderId">—</span>
+    </div>
+    <div class="modal-body">
+      <div class="input-group">
+        <label>Reason for Cancellation</label>
+        <select id="cancelReasonSelect" style="width:100%;padding:10px;background:var(--bg-high);border:0.5px solid var(--outline);border-radius:10px;color:var(--text);font-size:13px;cursor:pointer;">
+          <option value="">-- Select a reason --</option>
+          <option value="out_of_stock">🚫 Out of Stock</option>
+          <option value="equipment_issue">⚙️ Equipment Issue</option>
+          <option value="high_demand">📈 High Demand - Can't Keep Up</option>
+          <option value="student_request">👤 Student Requested Cancellation</option>
+          <option value="quality_issue">❌ Quality Issue Found</option>
+          <option value="ingredient_expired">⏰ Ingredient Expired</option>
+          <option value="other">📝 Other</option>
+        </select>
+        <textarea id="cancelNotes" placeholder="Additional notes (optional)" style="width:100%;padding:10px;margin-top:12px;background:var(--bg-high);border:0.5px solid var(--outline);border-radius:10px;color:var(--text);font-size:13px;min-height:60px;resize:none;"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn modal-btn-cancel" onclick="closeCancelModal()">Keep Order</button>
+      <button class="modal-btn modal-btn-confirm" style="background:#ff6b6b;color:white;" onclick="confirmCancelOrder()">❌ Cancel Order</button>
+    </div>
+  </div>
+</div>
+
 <script src="../common/config.js"></script>
 <script src="../common/app.js"></script>
 <script>
@@ -769,9 +803,9 @@ function orderCard(o, qPos){
 
   const actionBtn = actionHTML(o);
   
-  // Live countdown for ACCEPTED and PREPARING orders
+  // Live countdown ONLY for PREPARING orders (not ACCEPTED!)
   let timerDisplay = '';
-  if ((o.status === 'ACCEPTED' || o.status === 'PREPARING') && o.accepted_time && o.expected_time) {
+  if (o.status === 'PREPARING' && o.accepted_time && o.expected_time) {
     const deadline = o.accepted_time + (o.expected_time * 60);
     timerDisplay = `
       <div class="order-timer" data-deadline="${deadline}">
@@ -780,6 +814,16 @@ function orderCard(o, qPos){
           <div class="timer-penalty" style="display:none;"> </div>
         </div>
         <span class="timer-value" data-deadline="${deadline}">--:--</span>
+      </div>`;
+  } else if (o.status === 'ACCEPTED' && o.expected_time) {
+    // Show frozen timer display - NO countdown
+    timerDisplay = `
+      <div class="order-timer" style="background:rgba(79,255,176,0.06);border-color:rgba(79,255,176,0.25);">
+        <div>
+          <div class="timer-label">⏱ Preparation Time</div>
+          <div class="timer-penalty" style="color:#9998aa;font-size:11px;">⏸ Not started - waiting for 'Start Preparing' click</div>
+        </div>
+        <span class="timer-value" style="color:#4fffb0;">${o.expected_time}:00</span>
       </div>`;
   }
 
@@ -823,20 +867,33 @@ function statusLabel(s){
 }
 
 function actionHTML(o){
+  let actions = '';
   switch(o.status){
     case 'WAITING':
-      return `<button class="action-btn btn-accept" onclick="openAcceptModal(${o.order_id}, ${o.expected_time})">✅ Accept Order</button>`;
+      actions = `<button class="action-btn btn-accept" onclick="openAcceptModal(${o.order_id}, ${o.expected_time})">✅ Accept Order</button>`;
+      break;
     case 'ACCEPTED':
-      return `<button class="action-btn btn-prepare" onclick="updateStatus(${o.order_id},'preparing')">👨‍🍳 Start Preparing</button>`;
+      actions = `<button class="action-btn btn-prepare" onclick="updateStatus(${o.order_id},'preparing')">👨‍🍳 Start Preparing</button>`;
+      break;
     case 'PREPARING':
-      return `<button class="action-btn btn-ready" onclick="updateStatus(${o.order_id},'ready')">🔔 Mark Ready</button>`;
+      actions = `<button class="action-btn btn-ready" onclick="updateStatus(${o.order_id},'ready')">🔔 Mark Ready</button>`;
+      break;
     case 'READY':
-      return `<button class="action-btn btn-complete" onclick="updateStatus(${o.order_id},'complete')">✔ Completed</button>`;
+      actions = `<button class="action-btn btn-complete" onclick="updateStatus(${o.order_id},'complete')">✔ Completed</button>`;
+      break;
     case 'COMPLETED':
-      return `<div class="btn-done-tag">✔ Order Delivered</div>`;
+      actions = `<div class="btn-done-tag">✔ Order Delivered</div>`;
+      break;
     default:
-      return '';
+      actions = '';
   }
+  
+  // Add cancel button for WAITING and ACCEPTED only
+  if (['WAITING', 'ACCEPTED'].includes(o.status)) {
+    actions += `<button class="action-btn btn-cancel" onclick="openCancelModal(${o.order_id})">❌ Cancel</button>`;
+  }
+  
+  return actions;
 }
 
 /* ── Accept Order Modal Functions ── */
@@ -883,6 +940,53 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+/* ── Cancel Order Modal Functions ── */
+let currentOrderToCancel = null;
+
+function openCancelModal(orderId) {
+  currentOrderToCancel = orderId;
+  document.getElementById('cancelOrderId').textContent = String(orderId).slice(-6);
+  document.getElementById('cancelReasonSelect').value = '';
+  document.getElementById('cancelNotes').value = '';
+  document.getElementById('cancelOrderModal').classList.add('show');
+  document.getElementById('cancelReasonSelect').focus();
+}
+
+function closeCancelModal() {
+  document.getElementById('cancelOrderModal').classList.remove('show');
+  currentOrderToCancel = null;
+}
+
+function confirmCancelOrder() {
+  const reason = document.getElementById('cancelReasonSelect').value;
+  const notes = document.getElementById('cancelNotes').value.trim();
+  
+  if (!reason) {
+    showToast('❌ Please select a cancellation reason', 'error');
+    return;
+  }
+  
+  if (confirm(`❌ Are you sure you want to cancel order #${String(currentOrderToCancel).slice(-6)}?\n\nReason: ${reason}`)) {
+    cancelOrder(currentOrderToCancel, reason, notes);
+    closeCancelModal();
+  }
+}
+
+async function cancelOrder(orderId, reason, notes) {
+  try {
+    const res = await fetch(`${API}/order/cancel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ order_id: orderId, reason: reason, notes: notes })
+    });
+    if (!res.ok) throw new Error('Failed to cancel order');
+    showToast('✅ Order cancelled successfully!', 'success');
+    await loadOrders();
+  } catch(e) {
+    showToast('❌ Failed to cancel order. Try again.', 'error');
+  }
+}
 
 /* ── Update a single order's status ── */
 async function updateStatus(orderId, action, prepTime = null){
