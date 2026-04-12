@@ -435,6 +435,7 @@ const STEPS = ["WAITING","ACCEPTED","PREPARING","READY","COMPLETED"];
 let lastStatus  = null;
 let countdownInt = null;  // setInterval handle for countdown
 let currentOrder = null;  // Store current order for countdown display
+let isCountdownRunning = false;  // Flag to prevent duplicate intervals
 
 function formatTime(unix_timestamp) {
   if (!unix_timestamp) return "—";
@@ -571,8 +572,13 @@ function updateUI(o) {
   const alertWarn       = document.getElementById("alertWarn");
   const alertDanger     = document.getElementById("alertDanger");
 
-  // Clear any running counter
-  if (countdownInt) { clearInterval(countdownInt); countdownInt = null; }
+  // ALWAYS clear any running counter first
+  if (countdownInt) { 
+    console.log("🛑 Clearing previous countdown interval");
+    clearInterval(countdownInt); 
+    countdownInt = null;
+    isCountdownRunning = false;
+  }
 
   // Hide everything first
   countdownArea.style.display = "none";
@@ -583,12 +589,12 @@ function updateUI(o) {
   // Timer display on ACCEPTED (frozen) or PREPARING (counting down)
   if (o.status === "ACCEPTED" && o.expected_time) {
     // Show timer but DON'T start it - just display the full duration
-    console.log(`✅ ACCEPTED - showing frozen timer`);
+    console.log(`🟢 ACCEPTED - Showing FROZEN timer (NOT counting)`);
     countdownArea.style.display = "block";
     displayFrozenTimer(o.expected_time);
   } else if (o.status === "PREPARING" && o.accepted_time && o.expected_time) {
-    // Now start the countdown
-    console.log(`✅ PREPARING - starting countdown`);
+    // NOW start the countdown - only on PREPARING
+    console.log(`🟣 PREPARING - STARTING countdown timer`);
     const deadline = o.accepted_time + (o.expected_time * 60);
     countdownArea.style.display = "block";
     startCountdown(deadline);
@@ -642,6 +648,15 @@ function displayFrozenTimer(expectedTimeMinutes) {
 
 // ── Countdown function ────────────────────────────────────────────────────────
 function startCountdown(deadline) {
+  // Guard: prevent duplicate countdown intervals
+  if (isCountdownRunning) {
+    console.log("⚠️ Countdown already running, skipping duplicate");
+    return;
+  }
+  
+  isCountdownRunning = true;
+  console.log("▶️ Starting countdown now");
+  
   const digits    = document.getElementById("countdownDigits");
   const subText   = document.getElementById("countdownSub");
   const alertWarn = document.getElementById("alertWarn");
