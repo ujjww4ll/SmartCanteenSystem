@@ -580,9 +580,15 @@ function updateUI(o) {
   alertDanger.style.display   = "none";
   alertCredits.style.display  = "none";
 
-  // Timer ONLY on PREPARING - NEVER on ACCEPTED
-  if (o.status === "PREPARING" && o.accepted_time && o.expected_time) {
-    console.log(`✅ PREPARING - showing countdown + final amount`);
+  // Timer display on ACCEPTED (frozen) or PREPARING (counting down)
+  if (o.status === "ACCEPTED" && o.expected_time) {
+    // Show timer but DON'T start it - just display the full duration
+    console.log(`✅ ACCEPTED - showing frozen timer`);
+    countdownArea.style.display = "block";
+    displayFrozenTimer(o.expected_time);
+  } else if (o.status === "PREPARING" && o.accepted_time && o.expected_time) {
+    // Now start the countdown
+    console.log(`✅ PREPARING - starting countdown`);
     const deadline = o.accepted_time + (o.expected_time * 60);
     countdownArea.style.display = "block";
     startCountdown(deadline);
@@ -606,6 +612,31 @@ function updateUI(o) {
   if (o.status !== lastStatus) {
     if (lastStatus !== null) showToast(info.emoji + " " + info.desc);
     lastStatus = o.status;
+  }
+}
+
+// ── Display frozen timer (just show the duration, don't count) ────────────────
+function displayFrozenTimer(expectedTimeMinutes) {
+  const digits = document.getElementById("countdownDigits");
+  const subText = document.getElementById("countdownSub");
+  const finalAmtDiv = document.getElementById("countdownFinalAmount");
+  
+  // Show full duration frozen
+  const m = expectedTimeMinutes;
+  const s = 0;
+  const timeStr = `${m}:${s < 10 ? '0' : ''}${s}`;
+  
+  digits.className = "countdown-digits";
+  digits.textContent = timeStr;
+  subText.textContent = "⏸ Timer will start when staff clicks 'Start Preparing'";
+  
+  // Display final amount in countdown card
+  if (currentOrder && finalAmtDiv) {
+    let finalAmountHTML = `<div style="color:#9998aa;margin-bottom:6px;">Order Amount: <strong>₹${currentOrder.price}</strong></div>`;
+    finalAmountHTML += `<div style="color:#22c55e;font-size:12px;">`;
+    finalAmountHTML += `✅ Waiting for chef to start preparing...`;
+    finalAmountHTML += `</div>`;
+    finalAmtDiv.innerHTML = finalAmountHTML;
   }
 }
 
