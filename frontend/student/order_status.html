@@ -476,7 +476,10 @@ function updateUI(o) {
 
   const stepIdx   = STEPS.indexOf(o.status);
 
-  // Set emoji and desc based on status
+  // Define info first (always available)
+  let info = STATUS_INFO[o.status] || STATUS_INFO.WAITING;
+  
+  // Override info and emoji/desc for special statuses
   let emoji = "—";
   let desc = "—";
   let fill = "0%";
@@ -494,8 +497,7 @@ function updateUI(o) {
     desc = `Order completed! Your order was late, ₹${o.late_penalty} credited.`;
     fill = "100%";
   } else {
-    // Use default STATUS_INFO
-    const info = STATUS_INFO[o.status] || STATUS_INFO.WAITING;
+    // Use default STATUS_INFO values
     emoji = info.emoji;
     desc = info.desc;
     fill = info.fill;

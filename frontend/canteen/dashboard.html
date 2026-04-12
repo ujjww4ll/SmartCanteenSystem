@@ -835,23 +835,26 @@ function orderCard(o, qPos){
     </div>
     <div class="order-info">
       <div class="order-top">
-        <span class="order-id">#${String(o.order_id).slice(-6)}</span>
+        <span class="order-id">#${(o.queue_position || qPos).toString().padStart(2, '0')}</span>
         <span class="status-badge ${o.status}">${statusLabel(o.status)}</span>
         <span class="priority-score">⚡ ${score}</span>
       </div>
       <div class="order-items">${itemPills}</div>
       ${studentInfo}
       <div class="order-meta">
-        <div class="meta-chip"><span>⏱</span> ${o.expected_time} min prep</div>
+        <div class="meta-chip"><span>⏱</span> Expected: ${o.expected_time} min</div>
         <div class="meta-chip"><span>🛘</span> ${o.items_count} item${o.items_count>1?'s':''}</div>
         <div class="meta-chip"><span>📅</span> ${o.order_placed || 'Just now'}</div>
         <div class="meta-chip"><span>🕐</span> ${waitMins < 1 ? 'Just now' : waitMins + 'm ago'}</div>
+        ${o.accepted_time && o.expected_time ? `
+        <div class="meta-chip"><span>⏳</span> Total: ${Math.ceil((o.expected_time) / 1)} min</div>
+        ` : ''}
         ${o.late_penalty > 0 && o.status === 'COMPLETED'
           ? `<div class="meta-chip" style="flex-direction:column;gap:3px;align-items:flex-start;">
                <span style="color:#9998aa;font-size:10px;">Order Total</span>
                <span style="color:#ffe393;font-weight:800;">💰 ₹${(o.price||0).toFixed(0)}</span>
                <span style="color:#ff6b6b;font-size:10px;font-weight:700;">💳 −₹${o.late_penalty} credited to student</span>
-               <span style="color:#4fffb0;font-weight:800;font-size:13px;">Net: ₹${((o.price||0) - o.late_penalty).toFixed(0)}</span>
+               <span style="color:#4fffb0;font-weight:800;font-size:13px;">Final: ₹${((o.price||0) - o.late_penalty).toFixed(0)}</span>
              </div>`
           : `<div class="meta-chip"><span>💰</span> ₹${(o.price||0).toFixed(0)}</div>`
         }
@@ -907,7 +910,7 @@ let currentOrderToAccept = null;
 
 function openAcceptModal(orderId, suggestedTime) {
   currentOrderToAccept = orderId;
-  document.getElementById('modalOrderId').textContent = String(orderId).slice(-6);
+  document.getElementById('modalOrderId').textContent = (orderId - 1000).toString().padStart(2, '0');
   document.getElementById('prepTimeInput').value = suggestedTime || '';
   document.getElementById('prepTimeUnit').value = 'minutes';
   document.getElementById('prepTimeInput').focus();
@@ -952,7 +955,7 @@ let currentOrderToCancel = null;
 
 function openCancelModal(orderId) {
   currentOrderToCancel = orderId;
-  document.getElementById('cancelOrderId').textContent = String(orderId).slice(-6);
+  document.getElementById('cancelOrderId').textContent = (orderId - 1000).toString().padStart(2, '0');
   document.getElementById('cancelReasonSelect').value = '';
   document.getElementById('cancelNotes').value = '';
   document.getElementById('cancelOrderModal').classList.add('show');
@@ -973,7 +976,7 @@ function confirmCancelOrder() {
     return;
   }
   
-  if (confirm(`❌ Are you sure you want to cancel order #${String(currentOrderToCancel).slice(-6)}?\n\nReason: ${reason}`)) {
+  if (confirm(`❌ Are you sure you want to cancel order #${(currentOrderToCancel - 1000).toString().padStart(2, '0')}?\n\nReason: ${reason}`)) {
     cancelOrder(currentOrderToCancel, reason, notes);
     closeCancelModal();
   }
