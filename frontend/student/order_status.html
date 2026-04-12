@@ -652,7 +652,7 @@ function startCountdown(deadline) {
       // Show accumulating penalty in countdown card
       if (finalAmtDiv && currentOrder) {
         const total = currentOrder.price + penalty;
-        finalAmtDiv.innerHTML = `<div style=\"color:#ff6b6b;font-size:12px;\">⚠️ Late Penalty: +\u20b9${penalty}+ | 💰 Total: \u20b9${total}+</div>`;
+        finalAmtDiv.innerHTML = `<div style="color:#ff6b6b;font-size:12px;">⚠️ Late Penalty: +₹${penalty}+ | 💰 Total: ₹${total}+</div>`;
       }
   } else if (remaining <= 60) {
       // < 1 min — danger
