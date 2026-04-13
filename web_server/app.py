@@ -236,6 +236,12 @@ otp_store = {}
 SMTP_EMAIL    = os.environ.get("SMTP_EMAIL", "")
 SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
 
+# Debug: log environment on startup
+print(f"\n[STARTUP] SMTP_EMAIL configured: {bool(SMTP_EMAIL)}")
+print(f"[STARTUP] SMTP_PASSWORD configured: {bool(SMTP_PASSWORD)}")
+if SMTP_EMAIL:
+    print(f"[STARTUP] SMTP_EMAIL value: {SMTP_EMAIL}")
+
 def send_email(to_addr, otp):
     msg            = MIMEMultipart("alternative")
     msg["Subject"] = f"🍽️ B.U Eats — Your Verification Code: {otp}"
@@ -260,8 +266,11 @@ def send_email(to_addr, otp):
     
     try:
         # Try port 465 with SSL first (works better on Render)
+        print(f"[OTP EMAIL] SMTP_EMAIL: {SMTP_EMAIL}")
+        print(f"[OTP EMAIL] SMTP_PASSWORD length: {len(SMTP_PASSWORD)}")
         print(f"[OTP EMAIL] Trying port 465 (SSL)...")
         try:
+            print(f"[OTP EMAIL] Creating SMTP_SSL connection...")
             with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=10) as s:
                 print(f"[OTP EMAIL] Connected to smtp.gmail.com:465 (SSL)")
                 print(f"[OTP EMAIL] Logging in as {SMTP_EMAIL}...")
@@ -271,10 +280,11 @@ def send_email(to_addr, otp):
                 print(f"[OTP EMAIL] Email sent successfully to {to_addr}")
             return True
         except Exception as e:
-            print(f"[OTP EMAIL] Port 465 failed: {e}")
+            print(f"[OTP EMAIL] Port 465 failed: {type(e).__name__}: {e}")
             print(f"[OTP EMAIL] Trying port 587 (TLS)...")
             
             # Fallback to port 587 with TLS
+            print(f"[OTP EMAIL] Creating SMTP connection...")
             with smtplib.SMTP("smtp.gmail.com", 587, timeout=10) as s:
                 s.starttls()
                 print(f"[OTP EMAIL] Connected to smtp.gmail.com:587 (TLS)")
@@ -293,6 +303,8 @@ def send_email(to_addr, otp):
         return False
     except Exception as e:
         print(f"[OTP EMAIL] GENERAL ERROR: {type(e).__name__}: {e}")
+        import traceback
+        print(f"[OTP EMAIL] Full traceback: {traceback.format_exc()}")
         return False
 
 # ── SEND OTP (email-based) ──────────────────────────────────────────────────────
