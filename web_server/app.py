@@ -259,17 +259,32 @@ def send_email(to_addr, otp):
     msg.attach(MIMEText(html, "html"))
     
     try:
-        print(f"[OTP EMAIL] Connecting to SMTP: smtp.gmail.com:587")
-        print(f"[OTP EMAIL] Sender email: {SMTP_EMAIL}")
-        print(f"[OTP EMAIL] Recipient: {to_addr}")
-        with smtplib.SMTP("smtp.gmail.com", 587, timeout=10) as s:
-            s.starttls()
-            print(f"[OTP EMAIL] TLS started, attempting login...")
-            s.login(SMTP_EMAIL, SMTP_PASSWORD)
-            print(f"[OTP EMAIL] Login successful, sending email...")
-            s.sendmail(SMTP_EMAIL, to_addr, msg.as_string())
-            print(f"[OTP EMAIL] Email sent successfully to {to_addr}")
-        return True
+        # Try port 465 with SSL first (works better on Render)
+        print(f"[OTP EMAIL] Trying port 465 (SSL)...")
+        try:
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=10) as s:
+                print(f"[OTP EMAIL] Connected to smtp.gmail.com:465 (SSL)")
+                print(f"[OTP EMAIL] Logging in as {SMTP_EMAIL}...")
+                s.login(SMTP_EMAIL, SMTP_PASSWORD)
+                print(f"[OTP EMAIL] Login successful, sending email...")
+                s.sendmail(SMTP_EMAIL, to_addr, msg.as_string())
+                print(f"[OTP EMAIL] Email sent successfully to {to_addr}")
+            return True
+        except Exception as e:
+            print(f"[OTP EMAIL] Port 465 failed: {e}")
+            print(f"[OTP EMAIL] Trying port 587 (TLS)...")
+            
+            # Fallback to port 587 with TLS
+            with smtplib.SMTP("smtp.gmail.com", 587, timeout=10) as s:
+                s.starttls()
+                print(f"[OTP EMAIL] Connected to smtp.gmail.com:587 (TLS)")
+                print(f"[OTP EMAIL] Logging in as {SMTP_EMAIL}...")
+                s.login(SMTP_EMAIL, SMTP_PASSWORD)
+                print(f"[OTP EMAIL] Login successful, sending email...")
+                s.sendmail(SMTP_EMAIL, to_addr, msg.as_string())
+                print(f"[OTP EMAIL] Email sent successfully to {to_addr}")
+            return True
+            
     except smtplib.SMTPAuthenticationError as e:
         print(f"[OTP EMAIL] AUTH ERROR (invalid credentials): {e}")
         return False
@@ -298,12 +313,10 @@ def send_otp():
     # Try to send real email
     print(f"\n[OTP REQUEST] Email: {email}, OTP: {otp}")
     if send_email(email, otp):
-        return jsonify({"msg": f"OTP sent to {email}", "dev_mode": False}), 200
+        return jsonify({"msg": f"OTP sent to {email}"}), 200
     else:
-        # Fallback to dev mode if SMTP fails (allows testing when firewalls block SMTP)
-        print(f"[OTP REQUEST] Email send failed - falling back to dev mode with OTP visible")
-        return jsonify({"msg": "DEV MODE: OTP generated (SMTP fallback - firewall issue)", 
-                        "dev_mode": True, "otp": otp}), 200
+        print(f"[OTP REQUEST] Email send failed - check logs above")
+        return jsonify({"error": "Failed to send OTP"}), 500
 
 # ── VERIFY OTP ────────────────────────────────────────────────────────────────
 @app.route("/verify-otp", methods=["POST"])
